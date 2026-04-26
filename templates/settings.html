@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — PunkTrader</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a0f; color: #e4e4e7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; }
+  .container { max-width: 520px; margin: 0 auto; padding: 40px 20px; }
+  header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
+  h1 { font-size: 20px; font-weight: 600; }
+  a { color: #3b82f6; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .group { margin-bottom: 24px; }
+  .group h2 { font-size: 12px; color: #71717a; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+  label { display: block; color: #a1a1aa; font-size: 12px; margin-bottom: 4px; }
+  input[type=text], input[type=password], select, textarea {
+    width: 100%; background: #111118; color: #e4e4e7; border: 1px solid #2a2a3a;
+    padding: 8px 10px; border-radius: 6px; font-family: inherit; font-size: 13px; margin-bottom: 12px;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; }
+  textarea { resize: vertical; min-height: 60px; }
+  .checkbox { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
+  .checkbox input { width: 16px; height: 16px; accent-color: #22c55e; }
+  button { background: #3b82f6; color: #fff; border: none; padding: 10px 28px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
+  button:hover { background: #2563eb; }
+  .note { color: #52525b; font-size: 12px; margin-top: 8px; }
+  .saved { background: #22c55e15; border: 1px solid #22c55e30; color: #22c55e; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; }
+  hr { border: none; border-top: 1px solid #1a1a24; margin: 20px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <a href="/">&larr; Back</a>
+    <h1>Settings</h1>
+  </header>
+
+  {% if request.args.get('saved') %}
+  <div class="saved">Settings saved. Restart PunkTrader for changes to take effect.</div>
+  {% endif %}
+
+  <form method="POST" action="/settings">
+    <div class="group">
+      <h2>Alpaca API</h2>
+      <label>API Key</label>
+      <input type="password" name="api_key" value="{{ env.get('ALPACA_API_KEY', '') }}">
+      <label>API Secret</label>
+      <input type="password" name="api_secret" value="{{ env.get('ALPACA_API_SECRET', '') }}">
+      <label>Base URL</label>
+      <input type="text" name="base_url" value="{{ env.get('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets') }}">
+      <label>Data Feed</label>
+      <select name="data_feed">
+        <option value="iex" {{ 'selected' if env.get('DATA_FEED', 'iex') == 'iex' else '' }}>iex (free, ~15 min delay)</option>
+        <option value="sip" {{ 'selected' if env.get('DATA_FEED') == 'sip' else '' }}>sip (paid, real-time)</option>
+      </select>
+    </div>
+
+    <hr>
+
+    <div class="group">
+      <h2>General</h2>
+      <label>Timezone</label>
+      <select name="timezone">
+        {% for tz in timezones %}
+        <option value="{{ tz }}" {{ 'selected' if env.get('TIMEZONE', 'America/Los_Angeles') == tz else '' }}>{{ tz }}</option>
+        {% endfor %}
+      </select>
+      <label>Default Ticker</label>
+      <input type="text" name="default_ticker" value="{{ env.get('DEFAULT_TICKER', 'SPY') }}">
+    </div>
+
+    <hr>
+
+    <div class="group">
+      <h2>Watchlist</h2>
+      <label>Tickers for key level alerts (comma-separated)</label>
+      <textarea name="watchlist">{{ env.get('WATCHLIST', '') }}</textarea>
+    </div>
+
+    <div style="margin-top: 24px;">
+      <button type="submit">Save</button>
+    </div>
+    <p class="note">Changes take effect on next restart.</p>
+  </form>
+</div>
+</body>
+</html>

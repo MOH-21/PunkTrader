@@ -1,0 +1,213 @@
+/* PunkTrader — Dark theme */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --bg-primary: #0a0a0f;
+    --bg-secondary: #111118;
+    --bg-tertiary: #1a1a24;
+    --border: #2a2a3a;
+    --text-primary: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-muted: #52525b;
+    --accent: #3b82f6;
+    --green: #22c55e;
+    --red: #ef4444;
+    --cyan: #06b6d4;
+    --orange: #f59e0b;
+    --purple: #8b5cf6;
+}
+
+html, body {
+    height: 100%;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 13px;
+    overflow: hidden;
+}
+
+/* Toolbar */
+#toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 42px;
+    padding: 0 8px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+}
+
+#toolbar .separator {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    margin: 0 6px;
+}
+
+/* Ticker input */
+#ticker-input {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    width: 80px;
+    text-transform: uppercase;
+    font-family: inherit;
+}
+
+#ticker-input:focus {
+    outline: none;
+    border-color: var(--accent);
+}
+
+/* Timeframe buttons */
+.tf-group {
+    display: flex;
+    gap: 1px;
+}
+
+.tf-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 500;
+}
+
+.tf-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.tf-btn.active {
+    background: var(--accent);
+    color: #fff;
+}
+
+/* Layout buttons */
+.layout-group {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.layout-btn {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid transparent;
+    padding: 4px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    line-height: 1;
+}
+
+.layout-btn:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+.layout-btn.active {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* Chart grid */
+#chart-grid {
+    display: grid;
+    height: calc(100vh - 42px);
+    gap: 1px;
+    background: var(--border);
+}
+
+#chart-grid.layout-1x1 {
+    grid-template: 1fr / 1fr;
+}
+
+#chart-grid.layout-1x2 {
+    grid-template: 1fr / 1fr 1fr;
+}
+
+#chart-grid.layout-2x2 {
+    grid-template: 1fr 1fr / 1fr 1fr;
+}
+
+/* Chart panel */
+.chart-panel {
+    background: var(--bg-primary);
+    position: relative;
+    overflow: hidden;
+}
+
+.chart-panel.active {
+    box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Panel header */
+.panel-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    pointer-events: none;
+}
+
+.panel-ticker {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.panel-tf {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* OHLCV legend */
+.ohlcv-legend {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+}
+
+.ohlcv-legend .label {
+    color: var(--text-muted);
+}
+
+.ohlcv-legend .value {
+    color: var(--text-primary);
+}
+
+.ohlcv-legend .up { color: var(--green); }
+.ohlcv-legend .down { color: var(--red); }
+
+/* Loading spinner */
+.chart-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-muted);
+    font-size: 13px;
+    z-index: 20;
+}
