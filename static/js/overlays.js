@@ -2,30 +2,78 @@
  * Overlays — key level lines, VWAP, and alert markers on a ChartPanel.
  */
 
-// Level colors
 const LEVEL_COLORS = {
-    PDH: '#3b82f6', PDL: '#3b82f6',  // blue
-    PMH: '#f59e0b', PML: '#f59e0b',  // orange
-    ORH: '#06b6d4', ORL: '#06b6d4',  // cyan
+    PDH: '#4f9cf9',
+    PDL: '#2563a8',  // muted blue for lows
+    PMH: '#f97316',
+    PML: '#a34c0d',  // muted orange for lows
+    ORH: '#CFFF04',
+    ORL: '#7a9902',  // muted accent for lows
 };
 
-const LEVEL_STYLES = {
-    PDH: 0, PDL: 2,  // solid, dashed
-    PMH: 0, PML: 2,
-    ORH: 0, ORL: 2,
+// Human-readable short names for labels
+const LEVEL_LABELS = {
+    PDH: 'PDH', PDL: 'PDL',
+    PMH: 'PMH', PML: 'PML',
+    ORH: 'ORH', ORL: 'ORL',
 };
 
-/**
- * Load and draw key levels on a chart panel.
- */
-async function loadLevels(panel) {
-    // Remove existing level lines
+function _clearLevelOverlays(panel) {
     if (panel._levelLines) {
         panel._levelLines.forEach(line => {
             try { panel.candleSeries.removePriceLine(line); } catch (e) {}
         });
     }
     panel._levelLines = [];
+
+    if (panel._levelLabelEls) {
+        panel._levelLabelEls.forEach(el => el.remove());
+    }
+    panel._levelLabelEls = [];
+    panel._levelLabelPrices = [];
+
+    if (panel._levelInterval) {
+        clearInterval(panel._levelInterval);
+        panel._levelInterval = null;
+    }
+
+    if (panel._levelUnsubscribers) {
+        panel._levelUnsubscribers.forEach(fn => { try { fn(); } catch (e) {} });
+    }
+    panel._levelUnsubscribers = [];
+}
+
+function _positionLabels(panel) {
+    if (!panel._levelLabelEls || !panel._levelLabelPrices) return;
+    const containerH = panel.container.offsetHeight;
+    panel._levelLabelEls.forEach((el, i) => {
+        const price = panel._levelLabelPrices[i];
+        const y = panel.candleSeries.priceToCoordinate(price);
+        if (y === null || y === undefined || y < 0 || y > containerH) {
+            el.style.display = 'none';
+        } else {
+            el.style.display = 'inline-flex';
+            el.style.top = Math.round(y) + 'px';
+        }
+    });
+}
+
+function _makeLevelLabelEl(panel, name, price, color) {
+    const el = document.createElement('div');
+    el.className = 'level-label';
+    el.style.color = color;
+    el.innerHTML =
+        `<span class="lv-name">${LEVEL_LABELS[name] || name}</span>` +
+        `<span class="lv-price">${price.toFixed(2)}</span>`;
+    panel.container.appendChild(el);
+    return el;
+}
+
+/**
+ * Load and draw key levels on a chart panel.
+ */
+async function loadLevels(panel) {
+    _clearLevelOverlays(panel);
 
     try {
         const resp = await fetch(`/api/levels/${panel.ticker}`);
@@ -36,18 +84,45 @@ async function loadLevels(panel) {
         for (const [name, price] of Object.entries(levels)) {
             if (price === null) continue;
 
+            const color = LEVEL_COLORS[name] || '#71717a';
+
             const line = panel.candleSeries.createPriceLine({
-                price: price,
-                color: LEVEL_COLORS[name] || '#71717a',
-                lineWidth: 1,
-                lineStyle: LEVEL_STYLES[name] !== undefined ? LEVEL_STYLES[name] : 0,
-                axisLabelVisible: true,
-                title: name,
+                price,
+                color,
+                lineWidth: 2,
+                lineStyle: 0,          // solid — no dashes
+                axisLabelVisible: false,
+                title: '',
             });
             panel._levelLines.push(line);
+
+            const el = _makeLevelLabelEl(panel, name, price, color);
+            panel._levelLabelEls.push(el);
+            panel._levelLabelPrices.push(price);
         }
 
         panel._levels = levels;
+
+        // Initial paint after chart has settled
+        setTimeout(() => _positionLabels(panel), 80);
+
+        // Reposition on horizontal scroll/zoom
+        const tsHandler = () => _positionLabels(panel);
+        panel.chart.timeScale().subscribeVisibleLogicalRangeChange(tsHandler);
+        panel._levelUnsubscribers.push(() =>
+            panel.chart.timeScale().unsubscribeVisibleLogicalRangeChange(tsHandler)
+        );
+
+        // Reposition on crosshair move (proxy for vertical price scale drag)
+        const chHandler = () => _positionLabels(panel);
+        panel.chart.subscribeCrosshairMove(chHandler);
+        panel._levelUnsubscribers.push(() =>
+            panel.chart.unsubscribeCrosshairMove(chHandler)
+        );
+
+        // Low-frequency interval catches wheel-scroll on price axis with no mouse move
+        panel._levelInterval = setInterval(() => _positionLabels(panel), 150);
+
     } catch (err) {
         console.error('Failed to load levels:', err);
     }
@@ -57,7 +132,6 @@ async function loadLevels(panel) {
  * Load and draw VWAP on a chart panel.
  */
 async function loadVWAP(panel) {
-    // Remove existing VWAP series
     if (panel._vwapSeries) {
         try { panel.chart.removeSeries(panel._vwapSeries); } catch (e) {}
     }
@@ -89,7 +163,7 @@ async function loadVWAP(panel) {
 function addAlertMarker(panel, time, kind, text) {
     if (!panel._markers) panel._markers = [];
 
-    const marker = { time: time, text: text };
+    const marker = { time, text };
 
     if (kind === 'break_above') {
         marker.position = 'belowBar';
@@ -106,7 +180,6 @@ function addAlertMarker(panel, time, kind, text) {
     }
 
     panel._markers.push(marker);
-    // Sort markers by time (required by lightweight-charts)
     panel._markers.sort((a, b) => a.time - b.time);
     panel.candleSeries.setMarkers(panel._markers);
 }

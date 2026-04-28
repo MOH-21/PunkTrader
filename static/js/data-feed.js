@@ -61,12 +61,11 @@ class DataFeed {
             const candle = msg.candle;
             if (!candle) return;
 
-            // Bucket the candle into the panel's active timeframe
             const tfSeconds = this._timeframeSeconds();
             const bucketTime = Math.floor(candle.time / tfSeconds) * tfSeconds;
 
-            if (!this._currentCandle || this._currentCandle.time !== bucketTime) {
-                // New bar in this timeframe
+            if (!this._currentCandle || bucketTime > this._currentCandle.time) {
+                // New bar — advance forward
                 this._currentCandle = {
                     time: bucketTime,
                     open: candle.open,
@@ -75,18 +74,26 @@ class DataFeed {
                     close: candle.close,
                     volume: candle.volume || 0,
                 };
-            } else {
-                // Update existing bar
+                this.panel.updateCandle({ ...this._currentCandle });
+            } else if (bucketTime === this._currentCandle.time) {
+                // Same bucket — update in place
                 this._currentCandle.high = Math.max(this._currentCandle.high, candle.high);
                 this._currentCandle.low = Math.min(this._currentCandle.low, candle.low);
                 this._currentCandle.close = candle.close;
                 if (msg.type === 'bar') {
-                    // Finalized bar — add volume
                     this._currentCandle.volume += candle.volume || 0;
                 }
+                this.panel.updateCandle({ ...this._currentCandle });
+            } else {
+                // Old finalized bar — update chart only, don't touch _currentCandle
+                this.panel.updateCandle({
+                    time: bucketTime,
+                    open: candle.open,
+                    high: candle.high,
+                    low: candle.low,
+                    close: candle.close,
+                });
             }
-
-            this.panel.updateCandle({ ...this._currentCandle });
         }
     }
 

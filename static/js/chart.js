@@ -14,6 +14,8 @@ class ChartPanel {
         this.resizeObserver = null;
         this._legendEl = null;
         this._lastData = [];
+        this._countdownEl = null;
+        this._countdownInterval = null;
 
         this._createChart();
     }
@@ -39,25 +41,25 @@ class ChartPanel {
         // Create chart
         this.chart = LightweightCharts.createChart(this.container, {
             layout: {
-                background: { type: 'solid', color: '#0a0a0f' },
-                textColor: '#71717a',
+                background: { type: 'solid', color: '#0C0C0C' },
+                textColor: '#888880',
                 fontSize: 11,
             },
             grid: {
-                vertLines: { color: '#1a1a24' },
-                horzLines: { color: '#1a1a24' },
+                vertLines: { color: '#181818' },
+                horzLines: { color: '#181818' },
             },
             crosshair: {
                 mode: LightweightCharts.CrosshairMode.Normal,
-                vertLine: { color: '#3f3f46', width: 1, style: 2, labelBackgroundColor: '#27272a' },
-                horzLine: { color: '#3f3f46', width: 1, style: 2, labelBackgroundColor: '#27272a' },
+                vertLine: { color: '#444440', width: 1, style: 2, labelBackgroundColor: '#222220' },
+                horzLine: { color: '#444440', width: 1, style: 2, labelBackgroundColor: '#222220' },
             },
             rightPriceScale: {
-                borderColor: '#2a2a3a',
+                borderColor: '#222220',
                 scaleMargins: { top: 0.1, bottom: 0.08 },
             },
             timeScale: {
-                borderColor: '#2a2a3a',
+                borderColor: '#222220',
                 timeVisible: true,
                 secondsVisible: false,
                 rightOffset: 5,
@@ -69,12 +71,12 @@ class ChartPanel {
 
         // Candlestick series
         this.candleSeries = this.chart.addCandlestickSeries({
-            upColor: '#22c55e',
-            downColor: '#ef4444',
-            borderUpColor: '#22c55e',
-            borderDownColor: '#ef4444',
-            wickUpColor: '#22c55e',
-            wickDownColor: '#ef4444',
+            upColor: '#00FF41',
+            downColor: '#FF2424',
+            borderUpColor: '#00FF41',
+            borderDownColor: '#FF2424',
+            wickUpColor: '#00FF41',
+            wickDownColor: '#FF2424',
         });
 
         // Crosshair OHLCV legend
@@ -86,6 +88,48 @@ class ChartPanel {
             this.chart.resize(width, height);
         });
         this.resizeObserver.observe(this.container);
+
+        // Candle close countdown
+        this._countdownEl = document.createElement('div');
+        this._countdownEl.className = 'candle-countdown';
+        this.container.appendChild(this._countdownEl);
+        this._startCountdown();
+    }
+
+    _startCountdown() {
+        if (this._countdownInterval) clearInterval(this._countdownInterval);
+
+        const TF_SECONDS = {
+            '1Min': 60, '5Min': 300, '15Min': 900,
+            '1Hour': 3600, '4Hour': 14400,
+        };
+
+        const tick = () => {
+            const tf = TF_SECONDS[this.timeframe];
+            if (!tf || !this._countdownEl) {
+                if (this._countdownEl) this._countdownEl.style.display = 'none';
+                return;
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            const remaining = tf - (now % tf);
+            const m = Math.floor(remaining / 60);
+            const s = remaining % 60;
+            this._countdownEl.textContent =
+                `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+
+            if (this._lastData.length > 0 && this.candleSeries) {
+                const lastClose = this._lastData[this._lastData.length - 1].close;
+                const y = this.candleSeries.priceToCoordinate(lastClose);
+                if (y !== null && y !== undefined) {
+                    this._countdownEl.style.top = `${Math.round(y) + 20}px`;
+                    this._countdownEl.style.display = 'block';
+                }
+            }
+        };
+
+        tick();
+        this._countdownInterval = setInterval(tick, 1000);
     }
 
     _tfLabel() {
@@ -136,6 +180,7 @@ class ChartPanel {
     async loadData(ticker, timeframe) {
         this.ticker = ticker || this.ticker;
         this.timeframe = timeframe || this.timeframe;
+        this._startCountdown();
 
         // Update header
         const tickerEl = this.container.querySelector('.panel-ticker');
@@ -202,15 +247,11 @@ class ChartPanel {
     }
 
     destroy() {
-        if (this._dataFeed) {
-            this._dataFeed.disconnect();
-        }
-        if (this.resizeObserver) {
-            this.resizeObserver.disconnect();
-        }
-        if (this.chart) {
-            this.chart.remove();
-        }
+        if (this._countdownInterval) clearInterval(this._countdownInterval);
+        if (this._dataFeed) this._dataFeed.disconnect();
+        if (this.resizeObserver) this.resizeObserver.disconnect();
+        if (typeof _clearLevelOverlays === 'function') _clearLevelOverlays(this);
+        if (this.chart) this.chart.remove();
         this.container.innerHTML = '';
     }
 }

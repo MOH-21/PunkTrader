@@ -4,57 +4,215 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Settings — PunkTrader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0a0a0f; color: #e4e4e7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 14px; }
-  .container { max-width: 520px; margin: 0 auto; padding: 40px 20px; }
-  header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; }
-  h1 { font-size: 20px; font-weight: 600; }
-  a { color: #3b82f6; text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  .group { margin-bottom: 24px; }
-  .group h2 { font-size: 12px; color: #71717a; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
-  label { display: block; color: #a1a1aa; font-size: 12px; margin-bottom: 4px; }
-  input[type=text], input[type=password], select, textarea {
-    width: 100%; background: #111118; color: #e4e4e7; border: 1px solid #2a2a3a;
-    padding: 8px 10px; border-radius: 6px; font-family: inherit; font-size: 13px; margin-bottom: 12px;
-  }
-  input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; }
-  textarea { resize: vertical; min-height: 60px; }
-  .checkbox { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; }
-  .checkbox input { width: 16px; height: 16px; accent-color: #22c55e; }
-  button { background: #3b82f6; color: #fff; border: none; padding: 10px 28px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; }
-  button:hover { background: #2563eb; }
-  .note { color: #52525b; font-size: 12px; margin-top: 8px; }
-  .saved { background: #22c55e15; border: 1px solid #22c55e30; color: #22c55e; padding: 10px 14px; border-radius: 6px; margin-bottom: 20px; font-size: 13px; }
-  hr { border: none; border-top: 1px solid #1a1a24; margin: 20px 0; }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:     #0C0C0C;
+  --bg-2:   #111111;
+  --bg-3:   #191919;
+  --border: #222220;
+  --accent: #CFFF04;
+  --green:  #00FF41;
+  --text:   #F0ECD8;
+  --text-2: #888880;
+  --text-3: #444440;
+  --font-d: 'Bebas Neue', sans-serif;
+  --font-m: 'IBM Plex Mono', monospace;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-m);
+  font-size: 13px;
+  min-height: 100vh;
+}
+
+/* ─── Top bar ───────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 48px;
+  padding: 0 24px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  position: relative;
+}
+
+.topbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px);
+  pointer-events: none;
+}
+
+.brand {
+  font-family: var(--font-d);
+  font-size: 24px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  text-decoration: none;
+  text-shadow: 0 0 12px rgba(207,255,4,0.35);
+}
+
+.back-link {
+  font-family: var(--font-m);
+  font-size: 12px;
+  color: var(--text-2);
+  text-decoration: none;
+  letter-spacing: 0.5px;
+  margin-left: 4px;
+}
+
+.back-link:hover { color: var(--text); }
+
+.topbar h1 {
+  font-family: var(--font-d);
+  font-size: 22px;
+  letter-spacing: 2px;
+  color: var(--text);
+  font-weight: 400;
+  margin-left: auto;
+  padding-right: 2px;
+}
+
+/* ─── Layout ─────────────────────────────────── */
+
+.container {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+
+/* ─── Saved banner ───────────────────────────── */
+
+.saved {
+  background: rgba(0,255,65,0.06);
+  border: 1px solid rgba(0,255,65,0.25);
+  color: var(--green);
+  padding: 10px 14px;
+  margin-bottom: 28px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+}
+
+/* ─── Section headings ───────────────────────── */
+
+.group {
+  margin-bottom: 32px;
+}
+
+.group h2 {
+  font-family: var(--font-d);
+  font-size: 15px;
+  letter-spacing: 3px;
+  color: var(--accent);
+  margin-bottom: 16px;
+  line-height: 1;
+}
+
+/* ─── Divider ─────────────────────────────────── */
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0 0 32px;
+}
+
+/* ─── Form fields ─────────────────────────────── */
+
+label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+input[type=text],
+input[type=password],
+select,
+textarea {
+  width: 100%;
+  background: var(--bg-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  padding: 8px 10px;
+  font-family: var(--font-m);
+  font-size: 13px;
+  margin-bottom: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: border-color 0.1s;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+/* ─── Submit button ───────────────────────────── */
+
+.btn-save {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 0;
+  padding: 11px 36px;
+  cursor: pointer;
+  font-family: var(--font-d);
+  font-size: 18px;
+  letter-spacing: 3px;
+  transition: opacity 0.1s;
+}
+
+.btn-save:hover { opacity: 0.88; }
+
+.note {
+  color: var(--text-3);
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  margin-top: 10px;
+}
 </style>
 </head>
 <body>
+
+<div class="topbar">
+  <a href="/" class="brand">PUNK</a>
+  <a href="/" class="back-link">← BACK</a>
+  <h1>SETTINGS</h1>
+</div>
+
 <div class="container">
-  <header>
-    <a href="/">&larr; Back</a>
-    <h1>Settings</h1>
-  </header>
 
   {% if request.args.get('saved') %}
   <div class="saved">Settings saved. Restart PunkTrader for changes to take effect.</div>
   {% endif %}
 
   <form method="POST" action="/settings">
+
     <div class="group">
-      <h2>Alpaca API</h2>
+      <h2>FMP API</h2>
       <label>API Key</label>
-      <input type="password" name="api_key" value="{{ env.get('ALPACA_API_KEY', '') }}">
-      <label>API Secret</label>
-      <input type="password" name="api_secret" value="{{ env.get('ALPACA_API_SECRET', '') }}">
-      <label>Base URL</label>
-      <input type="text" name="base_url" value="{{ env.get('ALPACA_BASE_URL', 'https://paper-api.alpaca.markets') }}">
-      <label>Data Feed</label>
-      <select name="data_feed">
-        <option value="iex" {{ 'selected' if env.get('DATA_FEED', 'iex') == 'iex' else '' }}>iex (free, ~15 min delay)</option>
-        <option value="sip" {{ 'selected' if env.get('DATA_FEED') == 'sip' else '' }}>sip (paid, real-time)</option>
-      </select>
+      <input type="password" name="fmp_api_key" value="{{ env.get('FMP_API_KEY', '') }}">
     </div>
 
     <hr>
@@ -79,10 +237,11 @@
       <textarea name="watchlist">{{ env.get('WATCHLIST', '') }}</textarea>
     </div>
 
-    <div style="margin-top: 24px;">
-      <button type="submit">Save</button>
+    <div>
+      <button type="submit" class="btn-save">SAVE</button>
+      <p class="note">Changes take effect on next restart.</p>
     </div>
-    <p class="note">Changes take effect on next restart.</p>
+
   </form>
 </div>
 </body>

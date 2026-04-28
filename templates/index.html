@@ -4,39 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PunkTrader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="/static/css/app.css">
 <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
-<div id="toolbar">
-  <input type="text" id="ticker-input" value="{{ default_ticker }}" spellcheck="false">
+<div id="app-shell">
+  <aside id="sidebar" data-watchlist="{{ watchlist|join(',') }}">
+    <div class="watchlist-list"></div>
+  </aside>
 
-  <div class="separator"></div>
+  <div id="toolbar">
+    <span class="brand">PUNK</span>
+    <div class="separator"></div>
+    <input type="text" id="ticker-input" value="{{ default_ticker }}" spellcheck="false">
 
-  <div class="tf-group">
-    <button class="tf-btn" data-tf="1Min">1m</button>
-    <button class="tf-btn active" data-tf="5Min">5m</button>
-    <button class="tf-btn" data-tf="15Min">15m</button>
-    <button class="tf-btn" data-tf="1Hour">1H</button>
-    <button class="tf-btn" data-tf="4Hour">4H</button>
-    <button class="tf-btn" data-tf="1Day">D</button>
-    <button class="tf-btn" data-tf="1Week">W</button>
+    <div class="separator"></div>
+
+    <div class="tf-group">
+      <button class="tf-btn" data-tf="1Min">1m</button>
+      <button class="tf-btn active" data-tf="5Min">5m</button>
+      <button class="tf-btn" data-tf="15Min">15m</button>
+      <button class="tf-btn" data-tf="1Hour">1H</button>
+      <button class="tf-btn" data-tf="4Hour">4H</button>
+      <button class="tf-btn" data-tf="1Day">D</button>
+      <button class="tf-btn" data-tf="1Week">W</button>
+    </div>
+
+    <div class="separator"></div>
+
+    <div class="layout-group">
+      <button class="layout-btn active" data-layout="1x1" title="Single chart">&#9632;</button>
+      <button class="layout-btn" data-layout="1x2" title="Two charts">&#9632;&#9632;</button>
+      <button class="layout-btn" data-layout="2x2" title="Four charts">&#9638;</button>
+    </div>
+
+    <div class="separator"></div>
+    <a href="/settings" class="tf-btn" title="Settings" style="text-decoration:none;">&#9881;</a>
   </div>
 
-  <div class="separator"></div>
-
-  <div class="layout-group">
-    <button class="layout-btn active" data-layout="1x1" title="Single chart">&#9632;</button>
-    <button class="layout-btn" data-layout="1x2" title="Two charts">&#9632;&#9632;</button>
-    <button class="layout-btn" data-layout="2x2" title="Four charts">&#9638;</button>
+  <div id="chart-grid" class="layout-1x1">
   </div>
 
-  <div class="separator"></div>
-  <a href="/settings" class="tf-btn" title="Settings" style="text-decoration:none;">&#9881;</a>
-</div>
-
-<div id="chart-grid" class="layout-1x1">
+  <div id="status-strip"></div>
 </div>
 
 <script src="/static/js/notifications.js"></script>
@@ -45,6 +57,9 @@
 <script src="/static/js/data-feed.js"></script>
 <script src="/static/js/layout.js"></script>
 <script src="/static/js/toolbar.js"></script>
+<script src="/static/js/watchlist.js"></script>
+<script src="/static/js/keyboard.js"></script>
+<script src="/static/js/status-strip.js"></script>
 <script src="/static/js/app.js"></script>
 </body>
 </html>

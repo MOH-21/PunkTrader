@@ -72,6 +72,14 @@ class LayoutManager {
     setActivePanel(index) {
         this.activePanelIndex = index;
         this._updateActiveVisual();
+        const panel = this.getActivePanel();
+        if (panel) {
+            const tickerInput = document.getElementById('ticker-input');
+            if (tickerInput) tickerInput.value = panel.ticker;
+            document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
+                detail: { ticker: panel.ticker, timeframe: panel.timeframe }
+            }));
+        }
     }
 
     getActivePanel() {
@@ -91,6 +99,9 @@ class LayoutManager {
         const panel = this.getActivePanel();
         if (panel) {
             await panel.loadData(ticker);
+            document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
+                detail: { ticker: panel.ticker, timeframe: panel.timeframe }
+            }));
         }
     }
 
@@ -98,6 +109,9 @@ class LayoutManager {
         const panel = this.getActivePanel();
         if (panel) {
             await panel.loadData(null, timeframe);
+            document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
+                detail: { ticker: panel.ticker, timeframe: panel.timeframe }
+            }));
         }
     }
 }

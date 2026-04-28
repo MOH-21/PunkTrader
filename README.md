@@ -1,107 +1,79 @@
 # PunkTrader
 
-A TradingView-like charting app built with Flask and [lightweight-charts](https://github.com/nicholasdehnen/lightweight-charts). Real-time candlestick charts with key level overlays, VWAP, alert markers, and multi-chart layouts — all running locally in your browser.
+Stock charting terminal. Dark, brutal, fast. Candlestick charts with real-time price updates via 5s batch polling, key levels painted on the chart, multi-panel layouts, watchlist sidebar.
 
-![Dark theme](https://img.shields.io/badge/theme-dark-0a0a0f) ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue) ![License](https://img.shields.io/badge/license-MIT-green)
+![screenshot placeholder]
+
+---
 
 ## Features
 
-- **Candlestick charts** — All timeframes: 1m, 5m, 15m, 1H, 4H, Daily, Weekly
-- **Real-time updates** — Candles build live from Alpaca WebSocket trades and bars via SSE
-- **Key level overlays** — PDH/PDL (blue), PMH/PML (orange), ORH/ORL (cyan) as horizontal price lines
-- **VWAP** — Purple line overlay computed from session's 1-min bars
-- **Alert markers** — Break above/below triangles, proximity circles on the chart + browser notifications
-- **Multi-chart layouts** — Single, side-by-side, or 2x2 grid with independent ticker/timeframe per panel
-- **Crosshair legend** — OHLCV values on hover
-- **Settings UI** — Configure API keys, data feed, timezone, default ticker, and watchlist in the browser
+- Real-time candles — FMP `/batch-quote` polled every 5s, one request for all tickers
+- Key levels — PDH/PDL (prior day), PMH/PML (prior month), ORH/ORL (opening range) drawn as horizontal lines
+- VWAP — computed from intraday bars, overlaid on chart
+- Multi-panel layouts — 1x1, 1x2, 2x2 panels, each with independent ticker and timeframe
+- Watchlist sidebar — live price ticks across all configured symbols
+- Candle countdown timer — MM:SS until next bar close, rendered on price scale
+- Alert engine — fires once per level cross, tracked per (ticker, level) pair
+- Premarket bars — `extended=true` pulls 04:00–09:29 ET bars from FMP intraday endpoints
+- Timeframes — 1Min, 5Min, 15Min, 1Hour, 1Day, 1Week
+- Settings UI — configure API key and defaults at `/settings`, written back to `.env`
 
-## Setup
+---
+
+## Quick Start
 
 ```bash
-git clone https://github.com/MOH-21/PunkTrader.git
-cd PunkTrader
-python -m venv venv
-source venv/bin/activate
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
-
-Create a `.env` file:
-
-```
-ALPACA_API_KEY=your_key
-ALPACA_API_SECRET=your_secret
-ALPACA_BASE_URL=https://paper-api.alpaca.markets
-DATA_FEED=iex
-TIMEZONE=America/Los_Angeles
-```
-
-Or configure everything from the Settings page after launching.
-
-## Usage
-
-```bash
 python app.py
 ```
 
-Opens automatically at `http://localhost:5000`.
+Open http://localhost:5000. Get a free FMP API key at financialmodelingprep.com and enter it at `/settings`.
 
-For auto-reload during development:
+---
 
-```bash
-FLASK_DEBUG=1 python app.py
-```
+## Configuration
 
-## Data
+All config lives in `.env`. Can be edited directly or via `/settings`.
 
-All market data comes from [Alpaca](https://alpaca.markets/). The free `iex` feed has ~15 minute delay. Fund a live account and switch to `sip` for real-time data.
+| Key | Default | Notes |
+|-----|---------|-------|
+| `FMP_API_KEY` | — | Required. Free tier works for basic use. |
+| `FMP_BASE_URL` | `https://financialmodelingprep.com/stable` | FMP stable API base |
+| `TIMEZONE` | `America/Los_Angeles` | Display timezone |
+| `DEFAULT_TICKER` | `SPY` | Ticker shown on load |
+| `DEFAULT_TIMEFRAME` | `5Min` | Bar timeframe on load |
+| `WATCHLIST` | `SPY,QQQ,AAPL,...` | Comma-separated; drives sidebar and level pre-loading |
 
-| Feed | Latency | Cost |
-|------|---------|------|
-| `iex` | ~15 min delay | Free |
-| `sip` | Real-time | Free with funded live account |
+---
 
 ## Architecture
 
 ```
-Browser (lightweight-charts v4)
-  |
-  |-- REST: /api/bars, /api/levels, /api/vwap
-  |-- SSE:  /stream/<ticker>
-  |
-Flask (app.py)
-  |
-  |-- Alpaca REST API (historical bars, key levels, VWAP)
-  |-- Alpaca WebSocket (real-time trades + bars)
-       |
-       --> CandleBuilder --> SSE fan-out per ticker
-       --> Alert engine  --> SSE fan-out per ticker
+FMPBatchPoller (5s poll, all tickers, one request)
+  → CandleBuilder (per-minute OHLCV buckets)
+    → StreamState (SSE broadcast)
+      → /stream/<ticker> (Server-Sent Events)
+        → DataFeed.js (buckets into panel timeframe)
+          → lightweight-charts (candleSeries.update)
 ```
 
-## Project Structure
+Historical bars and levels load on ticker change via REST (`/bars`, `/levels`, `/vwap`). Live updates stream on top. Level alerts fire on bar close if a level boundary is crossed.
 
-```
-PunkTrader/
-├── app.py                  # Flask app, REST + SSE endpoints
-├── config.py               # Settings from .env
-├── data/
-│   ├── alpaca_rest.py      # Historical bar fetching
-│   ├── alpaca_ws.py        # WebSocket client (trades + bars)
-│   ├── candle_builder.py   # Trade aggregation into live candles
-│   └── vwap.py             # VWAP computation
-├── levels/
-│   ├── compute.py          # Key level computation (PDH/PDL, PMH/PML, ORH/ORL)
-│   └── alerts.py           # Alert engine (break/reclaim/fade detection)
-├── static/
-│   ├── css/app.css
-│   └── js/
-│       ├── app.js          # Entry point
-│       ├── chart.js        # ChartPanel (lightweight-charts wrapper)
-│       ├── data-feed.js    # SSE client
-│       ├── layout.js       # Multi-chart grid manager
-│       ├── overlays.js     # Key levels, VWAP, alert markers
-│       ├── toolbar.js      # Ticker input, timeframe/layout buttons
-│       └── notifications.js
-└── templates/
-    ├── index.html
-    └── settings.html
-```
+---
+
+## Tech Stack
+
+- Python 3.12, Flask
+- [lightweight-charts](https://github.com/tradingview/lightweight-charts) (TradingView)
+- [Financial Modeling Prep API](https://financialmodelingprep.com) — free tier, no WebSocket required
+- Punk Brutalist CSS — `#CFFF04` on black, Bebas Neue + IBM Plex Mono
+
+---
+
+## Known Limits
+
+- FMP free tier has a 250 calls/day cap on some endpoints. Historical bar fetches consume quota; `/batch-quote` was not capped in testing.
+- FMP WebSocket requires a $59/mo Premium plan — not used. Batch polling is the live data path.
+- ETFs may be unavailable on certain FMP endpoints depending on plan tier.

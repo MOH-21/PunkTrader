@@ -16,12 +16,13 @@ from flask import Flask, Response, jsonify, redirect, render_template, request
 from dotenv import dotenv_values, set_key
 
 import config
-from data.alpaca_rest import fetch_bars, get_api
-from data.alpaca_ws import AlpacaStream
+from data.fmp_rest import fetch_bars, get_api
+from data.fmp_batch_poller import FMPBatchPoller
 from data.candle_builder import CandleBuilder
 from data.vwap import compute_vwap
 from levels.alerts import AlertState, evaluate_bar, check_proximity
 from levels.compute import get_levels
+import levels.cache as level_cache
 
 app = Flask(__name__)
 
@@ -34,12 +35,14 @@ class StreamState:
     """Manages SSE subscribers and Alpaca WebSocket lifecycle."""
 
     def __init__(self):
-        self._subscribers = {}  # {ticker: [queue, ...]}
+        self._subscribers = {}     # {ticker: [queue, ...]}
+        self._wl_queues = []       # queues for /stream/watchlist
+        self._wl_last_tick = {}    # {ticker: (price, timestamp)} for coalescing
         self._lock = threading.Lock()
         self.candle_builder = CandleBuilder()
         self.stream = None
-        self._levels = {}       # {ticker: {level_name: price}}
-        self._alert_states = {} # {(ticker, level_name): AlertState}
+        self._levels = {}          # {ticker: {level_name: price}}
+        self._alert_states = {}    # {(ticker, level_name): AlertState}
 
     def subscribe(self, ticker):
         """Subscribe a new SSE client to a ticker. Returns a queue."""
@@ -68,8 +71,8 @@ class StreamState:
                 if not self._subscribers[ticker]:
                     del self._subscribers[ticker]
 
-        # Unsubscribe from WebSocket if no more listeners
-        if self.stream:
+        # Only unsubscribe from poller if not a permanent watchlist ticker
+        if self.stream and ticker not in [t.upper() for t in config.WATCHLIST]:
             self.stream.unsubscribe(ticker)
 
     def broadcast(self, ticker, data):
@@ -84,9 +87,14 @@ class StreamState:
                 pass
 
     def on_trade(self, ticker, price, size, timestamp_epoch):
+        prev_candle = self.candle_builder.get_candle(ticker)
         candle, is_new = self.candle_builder.on_trade(ticker, price, size, timestamp_epoch)
         event = json.dumps({"type": "trade", "candle": candle})
         self.broadcast(ticker, event)
+        if is_new and prev_candle:
+            self.broadcast(ticker, json.dumps({"type": "bar", "candle": prev_candle}))
+            self._run_alerts(ticker, prev_candle)
+        self._broadcast_watchlist_tick(ticker, price)
 
     def on_bar(self, ticker, bar_data):
         self.candle_builder.on_bar(ticker, bar_data)
@@ -99,10 +107,20 @@ class StreamState:
         if ticker in self._levels:
             return
         try:
-            api = get_api()
-            levels = get_levels(api, ticker)
-            self._levels[ticker] = levels
-            for level_name in levels:
+            cached = level_cache.get(ticker)
+            if cached and all(v is not None for v in cached.values()):
+                levels = cached
+            else:
+                api = get_api()
+                levels = get_levels(api, ticker)
+                if levels:
+                    level_cache.set(ticker, levels)
+                if cached:
+                    for k, v in cached.items():
+                        if levels.get(k) is None and v is not None:
+                            levels[k] = v
+            self._levels[ticker] = levels or {}
+            for level_name in self._levels[ticker]:
                 key = (ticker, level_name)
                 if key not in self._alert_states:
                     self._alert_states[key] = AlertState()
@@ -138,14 +156,46 @@ class StreamState:
             if alert:
                 self.broadcast(ticker, json.dumps({"type": "alert", **alert}))
 
+    def _broadcast_watchlist_tick(self, ticker, price):
+        """Fan out price tick to /stream/watchlist subscribers (500ms coalesce)."""
+        import time as _time
+        now = _time.time()
+        last_price, last_ts = self._wl_last_tick.get(ticker, (None, 0))
+        if now - last_ts < 0.5 and price == last_price:
+            return
+        self._wl_last_tick[ticker] = (price, now)
+        payload = json.dumps({"type": "price", "ticker": ticker, "price": price})
+        with self._lock:
+            queues = list(self._wl_queues)
+        for q in queues:
+            try:
+                q.put_nowait(payload)
+            except queue.Full:
+                pass
+
+    def subscribe_watchlist(self):
+        """Subscribe a client to the watchlist SSE stream."""
+        q = queue.Queue(maxsize=200)
+        with self._lock:
+            self._wl_queues.append(q)
+        return q
+
+    def unsubscribe_watchlist(self, q):
+        with self._lock:
+            if q in self._wl_queues:
+                self._wl_queues.remove(q)
+
     def start_stream(self):
         if self.stream:
             return
-        self.stream = AlpacaStream(
+        self.stream = FMPBatchPoller(
             on_trade=self.on_trade,
             on_bar=self.on_bar,
         )
         self.stream.start()
+        # Permanently subscribe all watchlist tickers (baseline refcount)
+        for ticker in config.WATCHLIST:
+            self.stream.subscribe(ticker.upper())
 
     def stop_stream(self):
         if self.stream:
@@ -174,7 +224,8 @@ _ENV_PATH = os.path.join(
 def index():
     return render_template("index.html",
                            default_ticker=config.DEFAULT_TICKER,
-                           default_timeframe=config.DEFAULT_TIMEFRAME)
+                           default_timeframe=config.DEFAULT_TIMEFRAME,
+                           watchlist=config.WATCHLIST)
 
 
 @app.route("/settings")
@@ -189,10 +240,7 @@ def save_settings():
         with open(_ENV_PATH, "w") as f:
             f.write("")
 
-    set_key(_ENV_PATH, "ALPACA_API_KEY", request.form.get("api_key", "").strip())
-    set_key(_ENV_PATH, "ALPACA_API_SECRET", request.form.get("api_secret", "").strip())
-    set_key(_ENV_PATH, "ALPACA_BASE_URL", request.form.get("base_url", "").strip())
-    set_key(_ENV_PATH, "DATA_FEED", request.form.get("data_feed", "iex"))
+    set_key(_ENV_PATH, "FMP_API_KEY", request.form.get("fmp_api_key", "").strip())
     set_key(_ENV_PATH, "TIMEZONE", request.form.get("timezone", "America/New_York"))
     set_key(_ENV_PATH, "DEFAULT_TICKER", request.form.get("default_ticker", "SPY").strip().upper())
 
@@ -235,6 +283,22 @@ def api_levels(ticker):
         return jsonify({"error": str(e)}), 400
 
 
+@app.route("/api/quote/<ticker>")
+def api_quote(ticker):
+    """Single quote passthrough — used by watchlist for initial render."""
+    try:
+        import requests as _req
+        r = _req.get(f"{config.FMP_BASE_URL}/quote",
+                     params={"symbol": ticker.upper(), "apikey": config.FMP_API_KEY},
+                     timeout=8)
+        r.raise_for_status()
+        data = r.json()
+        q = data[0] if isinstance(data, list) and data else {}
+        return jsonify({"price": q.get("price"), "changePercentage": q.get("changePercentage")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @app.route("/api/vwap/<ticker>")
 def api_vwap(ticker):
     """Compute VWAP for today's session."""
@@ -249,6 +313,24 @@ def api_vwap(ticker):
 # ---------------------------------------------------------------------------
 # SSE streaming
 # ---------------------------------------------------------------------------
+
+@app.route("/stream/watchlist")
+def stream_watchlist():
+    """SSE — price ticks for all watchlist tickers."""
+    def event_stream():
+        q = state.subscribe_watchlist()
+        try:
+            while True:
+                try:
+                    data = q.get(timeout=30)
+                    yield f"data: {data}\n\n"
+                except queue.Empty:
+                    yield ": keepalive\n\n"
+        except GeneratorExit:
+            state.unsubscribe_watchlist(q)
+
+    return Response(event_stream(), mimetype="text/event-stream",
+                    headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 @app.route("/stream/<ticker>")
 def stream_ticker(ticker):
@@ -277,13 +359,22 @@ def stream_ticker(ticker):
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
 
-    # In debug mode Flask spawns a reloader child process — only start
-    # the WebSocket stream and browser in the child (WERKZEUG_RUN_MAIN is set).
-    if not debug or os.environ.get("WERKZEUG_RUN_MAIN") == "true":
-        state.start_stream()
-        threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
+    # Start Alpaca WebSocket stream
+    state.start_stream()
 
+    threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     print(f"PunkTrader running at http://localhost:{port}")
-    app.run(host="127.0.0.1", port=port, debug=debug)
+
+    try:
+        from livereload import Server
+        server = Server(app.wsgi_app)
+        server.watch('app.py')
+        server.watch('config.py')
+        server.watch('data/')
+        server.watch('levels/')
+        server.watch('templates/')
+        server.watch('static/')
+        server.serve(host="127.0.0.1", port=port)
+    except ImportError:
+        app.run(host="127.0.0.1", port=port, debug=False)

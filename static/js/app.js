@@ -13,6 +13,7 @@
 
     // Initialize layout manager
     const layoutManager = new LayoutManager(grid);
+    window.layoutManager = layoutManager;
 
     // Initialize toolbar and get saved preferences
     const { savedTf, savedLayout } = initToolbar(layoutManager);

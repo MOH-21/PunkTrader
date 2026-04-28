@@ -1,8 +1,42 @@
+# Environment variables (use .env.example instead)
 .env
+
+# Python virtual environment
 venv/
-logs/
+env/
+ENV/
+
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+*.egg
+
+# PyInstaller
+*.spec
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+
+# Claude Code
 .claude/
+
+# Runtime cache
+levels/cache/*.json

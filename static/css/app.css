@@ -1,4 +1,6 @@
-/* PunkTrader — Dark theme */
+/* PunkTrader — Punk Brutalist */
+
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
 * {
     margin: 0;
@@ -7,69 +9,100 @@
 }
 
 :root {
-    --bg-primary: #0a0a0f;
-    --bg-secondary: #111118;
-    --bg-tertiary: #1a1a24;
-    --border: #2a2a3a;
-    --text-primary: #e4e4e7;
-    --text-secondary: #a1a1aa;
-    --text-muted: #52525b;
-    --accent: #3b82f6;
-    --green: #22c55e;
-    --red: #ef4444;
-    --cyan: #06b6d4;
-    --orange: #f59e0b;
-    --purple: #8b5cf6;
+    --bg:          #0C0C0C;
+    --bg-2:        #111111;
+    --bg-3:        #191919;
+    --border:      #222220;
+    --accent:      #CFFF04;
+    --green:       #00FF41;
+    --red:         #FF2424;
+    --text:        #F0ECD8;
+    --text-2:      #888880;
+    --text-3:      #444440;
+    --font-d:      'Bebas Neue', sans-serif;
+    --font-m:      'IBM Plex Mono', monospace;
 }
 
 html, body {
     height: 100%;
-    background: var(--bg-primary);
-    color: var(--text-primary);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-m);
     font-size: 13px;
     overflow: hidden;
 }
 
-/* Toolbar */
+#app-shell { height: 100%; }
+
+/* ─── Toolbar ────────────────────────────────────────────────── */
+
 #toolbar {
     display: flex;
     align-items: center;
     gap: 2px;
-    height: 42px;
-    padding: 0 8px;
-    background: var(--bg-secondary);
+    height: 48px;
+    padding: 0 14px;
+    background: var(--bg-2);
     border-bottom: 1px solid var(--border);
     user-select: none;
+    position: relative;
+}
+
+/* Scanline texture on toolbar */
+#toolbar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.06) 2px,
+        rgba(0,0,0,0.06) 4px
+    );
+    pointer-events: none;
+}
+
+.brand {
+    font-family: var(--font-d);
+    font-size: 24px;
+    letter-spacing: 3px;
+    color: var(--accent);
+    line-height: 1;
+    padding-right: 2px;
+    text-shadow: 0 0 12px rgba(207,255,4,0.35);
 }
 
 #toolbar .separator {
     width: 1px;
-    height: 24px;
+    height: 28px;
     background: var(--border);
-    margin: 0 6px;
+    margin: 0 10px;
+    flex-shrink: 0;
 }
 
-/* Ticker input */
+/* ─── Ticker input ───────────────────────────────────────────── */
+
 #ticker-input {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
-    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 0;
     padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 14px;
-    font-weight: 600;
-    width: 80px;
+    font-size: 17px;
+    font-family: var(--font-d);
+    letter-spacing: 3px;
+    width: 88px;
     text-transform: uppercase;
-    font-family: inherit;
 }
 
 #ticker-input:focus {
     outline: none;
-    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent), 0 0 8px rgba(207,255,4,0.2);
 }
 
-/* Timeframe buttons */
+/* ─── Timeframe buttons ──────────────────────────────────────── */
+
 .tf-group {
     display: flex;
     gap: 1px;
@@ -77,27 +110,32 @@ html, body {
 
 .tf-btn {
     background: transparent;
-    color: var(--text-secondary);
+    color: var(--text-2);
     border: none;
-    padding: 4px 8px;
-    border-radius: 3px;
+    border-radius: 0;
+    padding: 5px 10px;
     cursor: pointer;
-    font-size: 12px;
-    font-family: inherit;
-    font-weight: 500;
+    font-family: var(--font-d);
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: color 0.1s, background 0.1s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 }
 
 .tf-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
+    color: var(--text);
+    background: var(--bg-3);
 }
 
 .tf-btn.active {
     background: var(--accent);
-    color: #fff;
+    color: #000;
 }
 
-/* Layout buttons */
+/* ─── Layout buttons ─────────────────────────────────────────── */
+
 .layout-group {
     display: flex;
     gap: 4px;
@@ -106,19 +144,20 @@ html, body {
 
 .layout-btn {
     background: transparent;
-    color: var(--text-secondary);
+    color: var(--text-2);
     border: 1px solid transparent;
-    padding: 4px 6px;
-    border-radius: 3px;
+    border-radius: 0;
+    padding: 4px 7px;
     cursor: pointer;
+    font-family: var(--font-m);
     font-size: 11px;
-    font-family: 'SF Mono', 'Consolas', monospace;
     line-height: 1;
+    transition: color 0.1s;
 }
 
 .layout-btn:hover {
-    background: var(--bg-tertiary);
-    color: var(--text-primary);
+    color: var(--text);
+    background: var(--bg-3);
 }
 
 .layout-btn.active {
@@ -126,29 +165,23 @@ html, body {
     color: var(--accent);
 }
 
-/* Chart grid */
+/* ─── Chart grid ─────────────────────────────────────────────── */
+
 #chart-grid {
     display: grid;
-    height: calc(100vh - 42px);
+    height: 100%;
     gap: 1px;
     background: var(--border);
 }
 
-#chart-grid.layout-1x1 {
-    grid-template: 1fr / 1fr;
-}
+#chart-grid.layout-1x1 { grid-template: 1fr / 1fr; }
+#chart-grid.layout-1x2 { grid-template: 1fr / 1fr 1fr; }
+#chart-grid.layout-2x2 { grid-template: 1fr 1fr / 1fr 1fr; }
 
-#chart-grid.layout-1x2 {
-    grid-template: 1fr / 1fr 1fr;
-}
+/* ─── Chart panel ────────────────────────────────────────────── */
 
-#chart-grid.layout-2x2 {
-    grid-template: 1fr 1fr / 1fr 1fr;
-}
-
-/* Chart panel */
 .chart-panel {
-    background: var(--bg-primary);
+    background: var(--bg);
     position: relative;
     overflow: hidden;
 }
@@ -157,7 +190,8 @@ html, body {
     box-shadow: inset 0 0 0 1px var(--accent);
 }
 
-/* Panel header */
+/* ─── Panel header ───────────────────────────────────────────── */
+
 .panel-header {
     position: absolute;
     top: 0;
@@ -166,48 +200,265 @@ html, body {
     z-index: 10;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 6px 12px;
+    gap: 10px;
+    padding: 8px 14px;
     pointer-events: none;
 }
 
 .panel-ticker {
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--text-primary);
+    font-family: var(--font-d);
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--text);
+    line-height: 1;
 }
 
 .panel-tf {
-    font-size: 12px;
-    color: var(--text-muted);
+    font-family: var(--font-m);
+    font-size: 11px;
+    color: var(--text-3);
 }
 
-/* OHLCV legend */
+/* ─── OHLCV legend ───────────────────────────────────────────── */
+
 .ohlcv-legend {
     display: flex;
-    gap: 12px;
-    font-size: 12px;
-    font-family: 'SF Mono', 'Consolas', monospace;
+    gap: 14px;
+    font-family: var(--font-m);
+    font-size: 11px;
 }
 
-.ohlcv-legend .label {
-    color: var(--text-muted);
-}
+.ohlcv-legend .label { color: var(--text-3); }
+.ohlcv-legend .value { color: var(--text); }
+.ohlcv-legend .up    { color: var(--green); }
+.ohlcv-legend .down  { color: var(--red); }
 
-.ohlcv-legend .value {
-    color: var(--text-primary);
-}
+/* ─── Loading ────────────────────────────────────────────────── */
 
-.ohlcv-legend .up { color: var(--green); }
-.ohlcv-legend .down { color: var(--red); }
-
-/* Loading spinner */
 .chart-loading {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: var(--text-muted);
-    font-size: 13px;
+    color: var(--text-3);
+    font-family: var(--font-d);
+    font-size: 20px;
+    letter-spacing: 4px;
     z-index: 20;
 }
+
+/* ─── App shell grid ─────────────────────────────────────────── */
+
+#app-shell {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    grid-template-rows: 48px 1fr 28px;
+    height: 100%;
+}
+
+#toolbar    { grid-column: 1 / -1; grid-row: 1; }
+#sidebar    { grid-column: 1;      grid-row: 2; }
+#chart-grid { grid-column: 2;      grid-row: 2; }
+#status-strip { grid-column: 1 / -1; grid-row: 3; }
+
+/* ─── Sidebar ────────────────────────────────────────────────── */
+
+#sidebar {
+    background: var(--bg);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    position: relative;
+}
+
+#sidebar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.04) 2px,
+        rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+}
+
+#sidebar::-webkit-scrollbar { width: 6px; }
+#sidebar::-webkit-scrollbar-track { background: transparent; }
+#sidebar::-webkit-scrollbar-thumb { background: var(--border); }
+
+/* ─── Watchlist rows ─────────────────────────────────────────── */
+
+.watchlist-list {
+    padding: 4px 0;
+}
+
+.watchlist-row {
+    display: grid;
+    grid-template-columns: 4px 1fr auto;
+    height: 44px;
+    align-items: center;
+    cursor: pointer;
+    position: relative;
+}
+
+.watchlist-row:hover {
+    background: var(--bg-3);
+}
+
+.watchlist-row.active {
+    background: var(--bg-2);
+}
+
+.watchlist-row .wl-slab {
+    height: 100%;
+    background: transparent;
+}
+
+.watchlist-row.active .wl-slab {
+    background: var(--accent);
+}
+
+.watchlist-row .wl-ticker {
+    font-family: var(--font-d);
+    font-size: 18px;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    padding-left: 10px;
+}
+
+.watchlist-row .wl-prices {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    padding-right: 10px;
+    gap: 1px;
+}
+
+.watchlist-row .wl-price {
+    font-family: var(--font-m);
+    font-size: 13px;
+    font-feature-settings: "tnum";
+    color: var(--text);
+}
+
+.watchlist-row .wl-change {
+    font-family: var(--font-m);
+    font-size: 11px;
+    font-feature-settings: "tnum";
+}
+
+.watchlist-row .wl-change.up   { color: var(--green); }
+.watchlist-row .wl-change.down { color: var(--red); }
+
+.watchlist-row.stale .wl-price,
+.watchlist-row.stale .wl-change { color: var(--text-3); }
+
+/* ─── Watchlist animations ───────────────────────────────────── */
+
+@keyframes wl-flash {
+    0%   { background-image: linear-gradient(90deg, rgba(207,255,4,0.25) 0%, transparent 0%); }
+    100% { background-image: linear-gradient(90deg, rgba(207,255,4,0.25) 100%, transparent 100%); }
+}
+
+@keyframes wl-tick {
+    0%   { background-color: var(--bg-2); }
+    50%  { background-color: var(--bg-3); }
+    100% { background-color: transparent; }
+}
+
+.watchlist-row.flash { animation: wl-flash 80ms linear forwards; }
+.watchlist-row.tick  { animation: wl-tick 250ms linear forwards; }
+
+/* ─── Ticker input flash ─────────────────────────────────────── */
+
+@keyframes input-flash {
+    0%   { box-shadow: 0 0 0 2px var(--accent); }
+    100% { box-shadow: 0 0 0 2px transparent; }
+}
+
+#ticker-input.flash { animation: input-flash 120ms linear forwards; }
+
+/* ─── Layout flash ───────────────────────────────────────────── */
+
+@keyframes layout-flash {
+    0%   { outline: 2px solid var(--accent); outline-offset: -2px; }
+    100% { outline: 2px solid transparent;   outline-offset: -2px; }
+}
+
+#chart-grid.layout-flash { animation: layout-flash 100ms linear forwards; }
+
+/* ─── Candle countdown ───────────────────────────────────────── */
+
+.candle-countdown {
+    position: absolute;
+    right: 0;
+    width: 65px;
+    display: none;
+    text-align: center;
+    font-family: var(--font-m);
+    font-size: 11px;
+    font-feature-settings: "tnum";
+    color: var(--text-2);
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 2px 0;
+    z-index: 6;
+    pointer-events: none;
+}
+
+/* ─── Key level labels ───────────────────────────────────────── */
+
+.level-label {
+    position: absolute;
+    right: 70px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 17px;
+    padding: 0 5px 0 0;
+    background: var(--bg);
+    border: 1px solid currentColor;
+    border-left-width: 3px;
+    pointer-events: none;
+    z-index: 5;
+    transform: translateY(-50%);
+    white-space: nowrap;
+    user-select: none;
+}
+
+.level-label .lv-name {
+    font-family: var(--font-d);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    color: currentColor;
+    padding-left: 4px;
+    line-height: 1;
+}
+
+.level-label .lv-price {
+    font-family: var(--font-m);
+    font-size: 9px;
+    font-feature-settings: "tnum";
+    color: var(--text);
+    line-height: 1;
+}
+
+/* ─── Status strip ───────────────────────────────────────────── */
+
+#status-strip {
+    background: var(--bg-2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 10px;
+    font-family: var(--font-m);
+    font-size: 11px;
+    color: var(--text-2);
+    letter-spacing: 0.05em;
+}
+
+#status-strip .session-active { color: var(--accent); }
+#status-strip .session-dim    { color: var(--text-3); }
