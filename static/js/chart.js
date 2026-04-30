@@ -174,6 +174,8 @@ class ChartPanel {
         const data = param.seriesData.get(this.candleSeries);
         if (data) {
             this._renderLegendBar(data);
+        } else if (this._lastData.length > 0) {
+            this._renderLegendBar(this._lastData[this._lastData.length - 1]);
         }
     }
 
@@ -188,6 +190,16 @@ class ChartPanel {
             <span><span class="label">C</span> <span class="value ${colorClass}">${bar.close.toFixed(2)}</span></span>
             ${bar.volume !== undefined ? `<span><span class="label">V</span> <span class="value">${this._formatVolume(bar.volume)}</span></span>` : ''}
         `;
+    }
+
+    _showError(msg) {
+        // Clear any existing data so stale candles are removed
+        try { this.candleSeries.setData([]); } catch (e) {}
+        this._lastData = [];
+        if (this._legendEl) {
+            this._legendEl.innerHTML =
+                '<span><span class="label" style="color:#FF2424;">' + msg + '</span></span>';
+        }
     }
 
     _formatVolume(v) {
@@ -224,6 +236,12 @@ class ChartPanel {
 
             if (data.error) {
                 console.error('API error:', data.error);
+                this._showError('ERR');
+                return;
+            }
+
+            if (!data.length) {
+                this._showError('NO DATA');
                 return;
             }
 
@@ -239,6 +257,12 @@ class ChartPanel {
             // Load overlays (key levels + VWAP)
             if (typeof loadLevels === 'function') loadLevels(this);
             if (typeof loadVWAP === 'function') loadVWAP(this);
+
+            // Restore draw lines persisted across layout changes
+            if (this._drawLineConfigs && this._drawLineConfigs.length > 0 && typeof restoreDrawLines === 'function') {
+                restoreDrawLines(this, this._drawLineConfigs);
+                this._drawLineConfigs = [];
+            }
 
             // Connect real-time data feed
             if (typeof DataFeed === 'function') {

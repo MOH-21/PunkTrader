@@ -24,41 +24,58 @@ class LayoutManager {
      * Set layout mode: "1x1", "1x2", or "2x2"
      */
     setLayout(mode) {
-        const panelCount = { '1x1': 1, '1x2': 2, '2x2': 4 }[mode] || 1;
+        var panelCount = { '1x1': 1, '1x2': 2, '2x2': 4 }[mode] || 1;
         this.layout = mode;
 
-        // Save current panel states
-        const savedStates = this.panels.map(p => ({
-            ticker: p.ticker,
-            timeframe: p.timeframe,
-        }));
+        // Save current panel states to persistent store (survives layout changes)
+        if (!this._panelStates) this._panelStates = {};
+        for (var i = 0; i < this.panels.length; i++) {
+            var p = this.panels[i];
+            this._panelStates[i] = {
+                ticker: p.ticker || this._defaultTicker || 'SPY',
+                timeframe: p.timeframe || this._defaultTimeframe || '5Min',
+            };
+            // Persist draw lines across layout changes
+            if (typeof getDrawLineConfigs === 'function') {
+                this._panelStates[i].drawLines = getDrawLineConfigs(p);
+            }
+        }
 
         // Destroy existing panels
-        this.panels.forEach(p => p.destroy());
+        for (var j = 0; j < this.panels.length; j++) {
+            this.panels[j].destroy();
+        }
         this.panels = [];
         this.gridEl.innerHTML = '';
 
         // Set grid class
-        this.gridEl.className = `layout-${mode}`;
+        this.gridEl.className = 'layout-' + mode;
 
         // Create new panels
-        for (let i = 0; i < panelCount; i++) {
-            const div = document.createElement('div');
+        for (var k = 0; k < panelCount; k++) {
+            var div = document.createElement('div');
             div.className = 'chart-panel';
-            div.id = `panel-${i}`;
+            div.id = 'panel-' + k;
             this.gridEl.appendChild(div);
 
-            // Restore state or use defaults
-            const state = savedStates[i] || {
+            // Restore from persistent state or use defaults
+            var state = this._panelStates[k] || {
                 ticker: this._defaultTicker,
                 timeframe: this._defaultTimeframe,
             };
+            // Belt-and-suspenders: guard against corrupted state
+            if (!state.ticker) state.ticker = this._defaultTicker || 'SPY';
+            if (!state.timeframe) state.timeframe = this._defaultTimeframe || '5Min';
 
-            const panel = new ChartPanel(div, state.ticker, state.timeframe);
+            var panel = new ChartPanel(div, state.ticker, state.timeframe);
+            // Stash draw line configs for restoration after loadData
+            panel._drawLineConfigs = state.drawLines || [];
             this.panels.push(panel);
 
             // Click to activate
-            div.addEventListener('click', () => this.setActivePanel(i));
+            (function (idx) {
+                div.addEventListener('click', function () { this.setActivePanel(idx); }.bind(this));
+            }.bind(this)(k));
         }
 
         // Set active panel
@@ -66,15 +83,17 @@ class LayoutManager {
         this._updateActiveVisual();
 
         // Load data for all panels
-        this.panels.forEach(p => p.loadData());
+        for (var l = 0; l < this.panels.length; l++) {
+            this.panels[l].loadData();
+        }
     }
 
     setActivePanel(index) {
         this.activePanelIndex = index;
         this._updateActiveVisual();
-        const panel = this.getActivePanel();
+        var panel = this.getActivePanel();
         if (panel) {
-            const tickerInput = document.getElementById('ticker-input');
+            var tickerInput = document.getElementById('ticker-input');
             if (tickerInput) tickerInput.value = panel.ticker;
             document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
                 detail: { ticker: panel.ticker, timeframe: panel.timeframe }
@@ -87,31 +106,36 @@ class LayoutManager {
     }
 
     _updateActiveVisual() {
-        this.panels.forEach((p, i) => {
-            p.container.classList.toggle('active', i === this.activePanelIndex);
+        var self = this;
+        Array.prototype.forEach.call(this.panels, function(p, i) {
+            p.container.classList.toggle('active', i === self.activePanelIndex);
         });
     }
 
     /**
      * Change ticker/timeframe on the active panel.
      */
-    async setTicker(ticker) {
-        const panel = this.getActivePanel();
+    setTicker(ticker) {
+        var panel = this.getActivePanel();
         if (panel) {
-            await panel.loadData(ticker);
-            document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
-                detail: { ticker: panel.ticker, timeframe: panel.timeframe }
-            }));
+            return panel.loadData(ticker).then((function() {
+                document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
+                    detail: { ticker: panel.ticker, timeframe: panel.timeframe }
+                }));
+            }).bind(this));
         }
+        return Promise.resolve();
     }
 
-    async setTimeframe(timeframe) {
-        const panel = this.getActivePanel();
+    setTimeframe(timeframe) {
+        var panel = this.getActivePanel();
         if (panel) {
-            await panel.loadData(null, timeframe);
-            document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
-                detail: { ticker: panel.ticker, timeframe: panel.timeframe }
-            }));
+            return panel.loadData(null, timeframe).then((function() {
+                document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
+                    detail: { ticker: panel.ticker, timeframe: panel.timeframe }
+                }));
+            }).bind(this));
         }
+        return Promise.resolve();
     }
 }

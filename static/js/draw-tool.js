@@ -160,6 +160,23 @@
     }
   }
 
+  // Persistence: save/restore draw line configs across layout changes
+  function getDrawLineConfigs(panel) {
+    var configs = [];
+    if (panel._drawLines) {
+      for (var i = 0; i < panel._drawLines.length; i++) {
+        configs.push({ price: panel._drawLines[i].price, color: panel._drawLines[i].color });
+      }
+    }
+    return configs;
+  }
+
+  function restoreDrawLines(panel, configs) {
+    for (var i = 0; i < configs.length; i++) {
+      _createLine(panel, configs[i].price, configs[i].color);
+    }
+  }
+
   // Close popup on Escape
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
@@ -175,4 +192,6 @@
   window.setDrawToolActive = setDrawToolActive;
   window.isDrawToolActive = isDrawToolActive;
   window.clearDrawTool = clearDrawTool;
+  window.getDrawLineConfigs = getDrawLineConfigs;
+  window.restoreDrawLines = restoreDrawLines;
 })();

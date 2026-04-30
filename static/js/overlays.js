@@ -140,15 +140,23 @@ async function loadLevels(panel) {
  * Load and draw VWAP on a chart panel.
  */
 async function loadVWAP(panel) {
+    // Prevent concurrent VWAP loads on same panel
+    if (panel._vwapLoading) return;
+    panel._vwapLoading = true;
+
     if (panel._vwapSeries) {
         try { panel.chart.removeSeries(panel._vwapSeries); } catch (e) {}
+        panel._vwapSeries = null;
     }
 
     try {
         const resp = await fetch(`/api/vwap/${panel.ticker}`);
         const data = await resp.json();
 
-        if (!Array.isArray(data) || data.length === 0) return;
+        if (!Array.isArray(data) || data.length === 0) {
+            panel._vwapLoading = false;
+            return;
+        }
 
         panel._vwapSeries = panel.chart.addLineSeries({
             color: '#8b5cf6',
@@ -161,6 +169,8 @@ async function loadVWAP(panel) {
         panel._vwapSeries.setData(data);
     } catch (err) {
         console.error('Failed to load VWAP:', err);
+    } finally {
+        panel._vwapLoading = false;
     }
 }
 
