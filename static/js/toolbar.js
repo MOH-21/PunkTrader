@@ -120,6 +120,24 @@ function initToolbar(layoutManager, ptKey) {
             }
         }
 
+        // --- VWAP toggle ---
+        var vwapToggle = document.getElementById('vwap-toggle');
+        if (vwapToggle && typeof toggleVWAP === 'function') {
+            vwapToggle.addEventListener('click', function () {
+                var active = !vwapToggle.classList.contains('active');
+                vwapToggle.classList.toggle('active', active);
+                toggleVWAP(active);
+                try { localStorage.setItem(ptKey('vwap'), active ? 'on' : 'off'); } catch (e) {}
+            });
+            // Restore saved preference
+            var savedVWAP = null;
+            try { savedVWAP = localStorage.getItem(ptKey('vwap')); } catch (e) {}
+            if (savedVWAP === 'off') {
+                vwapToggle.classList.remove('active');
+                toggleVWAP(false);
+            }
+        }
+
         return { savedTf: savedTf, savedLayout: savedLayout };
     } catch (e) {
         console.error('Toolbar init failed:', e);

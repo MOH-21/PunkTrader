@@ -174,6 +174,26 @@ async function loadVWAP(panel) {
     }
 }
 
+var _vwapEnabled = true;
+
+function toggleVWAP(enabled) {
+    _vwapEnabled = enabled;
+    if (!window.layoutManager) return;
+    var panels = window.layoutManager.panels;
+    for (var i = 0; i < panels.length; i++) {
+        if (enabled) {
+            loadVWAP(panels[i]);
+        } else if (panels[i]._vwapSeries) {
+            try { panels[i].chart.removeSeries(panels[i]._vwapSeries); } catch (e) {}
+            panels[i]._vwapSeries = null;
+        }
+    }
+}
+
+function isVWAPEnabled() {
+    return _vwapEnabled;
+}
+
 /**
  * Add an alert marker to the chart.
  * kind: "break_above", "break_below", "proximity"
