@@ -62,6 +62,10 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
+  if (isTickerInput && e.key === 'L' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    return; // Let L through when typing in ticker input
+  }
+
   if (e.shiftKey && e.key === 'L' && !e.ctrlKey && !e.metaKey && !e.altKey) {
     e.preventDefault();
     if (typeof layoutManager !== 'undefined') {
@@ -81,7 +85,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '7') {
+  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '7' && !isTickerInput) {
     e.preventDefault();
     const tf = timeframeMap[e.key];
     if (typeof layoutManager !== 'undefined' && layoutManager.setTimeframe) {
@@ -91,24 +95,15 @@ document.addEventListener('keydown', (e) => {
   }
 
   if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key.length === 1 && /^[a-z]$/i.test(e.key)) {
-    e.preventDefault();
-    if (tickerInput) {
+    if (tickerInput && document.activeElement !== tickerInput) {
       tickerInput.focus();
       tickerInput.value = '';
       tickerInput.classList.add('flash');
-      setTimeout(() => {
+      setTimeout(function() {
         tickerInput.classList.remove('flash');
       }, 120);
-      const keydownEvent = new KeyboardEvent('keydown', {
-        key: e.key.toUpperCase(),
-        code: e.code,
-        keyCode: e.keyCode,
-        which: e.which,
-        bubbles: true,
-        cancelable: true
-      });
-      tickerInput.dispatchEvent(keydownEvent);
     }
+    // Don't preventDefault — let the native character flow into the focused input
     return;
   }
 });
