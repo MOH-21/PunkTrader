@@ -8,6 +8,8 @@ bar data, key levels, and VWAP. SSE endpoint for real-time streaming.
 import json
 import os
 import queue
+import re
+import sys
 import threading
 import webbrowser
 
@@ -24,7 +26,18 @@ from levels.alerts import AlertState, evaluate_bar, check_proximity
 from levels.compute import get_levels
 import levels.cache as level_cache
 
-app = Flask(__name__)
+
+def _app_path():
+    """Base path for templates/static — PyInstaller bundle vs dev."""
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+
+app = Flask(__name__,
+    template_folder=os.path.join(_app_path(), 'templates'),
+    static_folder=os.path.join(_app_path(), 'static'),
+    static_url_path='/static')
 
 
 # ---------------------------------------------------------------------------
@@ -205,6 +218,35 @@ class StreamState:
 
 state = StreamState()
 
+_INVALID_TICKER_CHARS = re.compile(r'[^A-Z]')
+
+def _sanitize_ticker(t):
+    """Strip non-alpha, uppercase, max 10 chars. Raises ValueError if empty."""
+    clean = _INVALID_TICKER_CHARS.sub('', t.upper())[:10]
+    if not clean:
+        raise ValueError(f"invalid ticker: {t!r}")
+    return clean
+
+
+# ---------------------------------------------------------------------------
+# CSP security headers
+# ---------------------------------------------------------------------------
+
+@app.after_request
+def _add_security_headers(resp):
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    # Skip CSP for SSE (needs event-stream) and static fonts/images
+    ct = resp.content_type or ''
+    if ct != 'text/event-stream':
+        resp.headers['Content-Security-Policy'] = (
+            "default-src 'self'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            "font-src 'self' https://fonts.gstatic.com; "
+            "img-src 'self' data:; "
+            "connect-src 'self'"
+        )
+    return resp
+
 
 # ---------------------------------------------------------------------------
 # Pages
@@ -216,7 +258,9 @@ _TIMEZONES = [
 ]
 
 _ENV_PATH = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)), '.env'
+    os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
+    else os.path.dirname(os.path.abspath(__file__)),
+    '.env'
 )
 
 
@@ -225,7 +269,8 @@ def index():
     return render_template("index.html",
                            default_ticker=config.DEFAULT_TICKER,
                            default_timeframe=config.DEFAULT_TIMEFRAME,
-                           watchlist=config.WATCHLIST)
+                           watchlist=config.WATCHLIST,
+                           timezone=config.TIMEZONE)
 
 
 @app.route("/settings")
@@ -241,7 +286,7 @@ def save_settings():
             f.write("")
 
     set_key(_ENV_PATH, "FMP_API_KEY", request.form.get("fmp_api_key", "").strip())
-    set_key(_ENV_PATH, "TIMEZONE", request.form.get("timezone", "America/New_York"))
+    set_key(_ENV_PATH, "TIMEZONE", request.form.get("timezone", "America/Los_Angeles"))
     set_key(_ENV_PATH, "DEFAULT_TICKER", request.form.get("default_ticker", "SPY").strip().upper())
 
     wl = request.form.get("watchlist", "").strip()
@@ -259,13 +304,17 @@ def save_settings():
 @app.route("/api/bars/<ticker>")
 def api_bars(ticker):
     """Fetch historical OHLCV bars."""
+    try:
+        ticker = _sanitize_ticker(ticker)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
     timeframe = request.args.get("timeframe", "5Min")
     start = request.args.get("start")
     end = request.args.get("end")
 
     try:
         api = get_api()
-        bars = fetch_bars(api, ticker.upper(), timeframe=timeframe,
+        bars = fetch_bars(api, ticker, timeframe=timeframe,
                           start=start, end=end)
         return jsonify(bars)
     except Exception as e:
@@ -276,8 +325,12 @@ def api_bars(ticker):
 def api_levels(ticker):
     """Compute key levels (PDH/PDL, PMH/PML, ORH/ORL) for a ticker."""
     try:
+        ticker = _sanitize_ticker(ticker)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    try:
         api = get_api()
-        levels = get_levels(api, ticker.upper())
+        levels = get_levels(api, ticker)
         return jsonify(levels)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -287,9 +340,13 @@ def api_levels(ticker):
 def api_quote(ticker):
     """Single quote passthrough — used by watchlist for initial render."""
     try:
+        ticker = _sanitize_ticker(ticker)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    try:
         import requests as _req
         r = _req.get(f"{config.FMP_BASE_URL}/quote",
-                     params={"symbol": ticker.upper(), "apikey": config.FMP_API_KEY},
+                     params={"symbol": ticker, "apikey": config.FMP_API_KEY},
                      timeout=8)
         r.raise_for_status()
         data = r.json()
@@ -303,8 +360,12 @@ def api_quote(ticker):
 def api_vwap(ticker):
     """Compute VWAP for today's session."""
     try:
+        ticker = _sanitize_ticker(ticker)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    try:
         api = get_api()
-        vwap_data = compute_vwap(api, ticker.upper())
+        vwap_data = compute_vwap(api, ticker)
         return jsonify(vwap_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
@@ -335,7 +396,10 @@ def stream_watchlist():
 @app.route("/stream/<ticker>")
 def stream_ticker(ticker):
     """SSE endpoint — streams real-time trades and bars for a ticker."""
-    ticker = ticker.upper()
+    try:
+        ticker = _sanitize_ticker(ticker)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
 
     def event_stream():
         q = state.subscribe(ticker)
@@ -357,24 +421,73 @@ def stream_ticker(ticker):
 # Entry point
 # ---------------------------------------------------------------------------
 
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
+def _free_port(port):
+    """Kill any process already bound to port so restarts never hit EADDRINUSE."""
+    import signal
+    import subprocess
+    result = subprocess.run(
+        ["lsof", "-ti", f":{port}"], capture_output=True, text=True
+    )
+    for pid_str in result.stdout.split():
+        try:
+            os.kill(int(pid_str), signal.SIGTERM)
+        except ProcessLookupError:
+            pass
 
-    # Start Alpaca WebSocket stream
+
+if __name__ == "__main__":
+    import argparse
+    _parser = argparse.ArgumentParser(description="PunkTrader")
+    _parser.add_argument("--browser", "--no-window", action="store_true",
+                         help="Open in browser instead of native window (frozen builds only)")
+    _args, _ = _parser.parse_known_args()
+
+    port = int(os.environ.get("PORT", 5000))
+    is_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
+
+    # One-time setup (not Werkzeug reloader child)
+    if not is_child:
+        _free_port(port)
+
+        if not getattr(sys, 'frozen', False):
+            import subprocess as _sp
+            result = _sp.run(
+                ["venv/bin/pytest", "--tb=short", "-q"],
+                cwd=os.path.dirname(os.path.abspath(__file__)),
+            )
+            if result.returncode != 0:
+                print("Tests failed — fix them before starting PunkTrader.")
+                raise SystemExit(result.returncode)
+
+        # Browser open only in dev mode (not frozen/native-window)
+        if not getattr(sys, 'frozen', False):
+            threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
+
+    # FMP batch poller (must run in serving process)
     state.start_stream()
 
-    threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
     print(f"PunkTrader running at http://localhost:{port}")
 
-    try:
-        from livereload import Server
-        server = Server(app.wsgi_app)
-        server.watch('app.py')
-        server.watch('config.py')
-        server.watch('data/')
-        server.watch('levels/')
-        server.watch('templates/')
-        server.watch('static/')
-        server.serve(host="127.0.0.1", port=port)
-    except ImportError:
-        app.run(host="127.0.0.1", port=port, debug=False)
+    # Frozen exe → native window via pywebview (skip with --browser)
+    if getattr(sys, 'frozen', False) and not _args.browser:
+        try:
+            import webview
+            threading.Thread(
+                target=lambda: app.run(host="127.0.0.1", port=port, debug=False, threaded=True),
+                daemon=True,
+            ).start()
+            # Wait for server before opening window
+            import time, urllib.request
+            for _ in range(30):
+                try:
+                    urllib.request.urlopen(f"http://127.0.0.1:{port}")
+                    break
+                except Exception:
+                    time.sleep(0.3)
+            webview.create_window("PunkTrader", f"http://localhost:{port}")
+            webview.start()
+            sys.exit(0)
+        except ImportError:
+            pass  # fall through to plain Flask
+
+    app.run(host="127.0.0.1", port=port, debug=False, threaded=True)

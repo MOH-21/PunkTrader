@@ -1,69 +1,128 @@
 /**
  * Toolbar — wires up ticker input, timeframe buttons, and layout buttons.
  */
-function initToolbar(layoutManager) {
-    const tickerInput = document.getElementById('ticker-input');
-    const tfButtons = document.querySelectorAll('.tf-btn');
-    const layoutButtons = document.querySelectorAll('.layout-btn');
+function initToolbar(layoutManager, ptKey) {
+    try {
+        const tickerInput = document.getElementById('ticker-input');
+        const tfButtons = document.querySelectorAll('.tf-btn');
+        const layoutButtons = document.querySelectorAll('.layout-btn');
 
-    // --- Ticker input ---
-    tickerInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const ticker = tickerInput.value.trim().toUpperCase();
-            if (ticker) {
-                layoutManager.setTicker(ticker);
-                localStorage.setItem('pt_ticker', ticker);
-            }
-            tickerInput.blur();
+        // Fallback if ptKey not provided (direct load without ?i=)
+        if (!ptKey) ptKey = function(name) { return 'pt_' + name; };
+
+        // --- Sidebar toggle ---
+        const sidebarToggle = document.getElementById('sidebar-toggle');
+        const appShell = document.getElementById('app-shell');
+
+        var sidebarCollapsed = false;
+        try { sidebarCollapsed = localStorage.getItem(ptKey('sidebar')) === 'collapsed'; } catch (e) {}
+        if (sidebarCollapsed && appShell) {
+            appShell.classList.add('sidebar-collapsed');
+            if (sidebarToggle) sidebarToggle.textContent = '▶';
         }
-    });
 
-    // Select all text on focus
-    tickerInput.addEventListener('focus', () => tickerInput.select());
+        if (sidebarToggle && appShell) {
+            sidebarToggle.addEventListener('click', function() {
+                sidebarCollapsed = !sidebarCollapsed;
+                appShell.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+                sidebarToggle.textContent = sidebarCollapsed ? '▶' : '◀';
+                try { localStorage.setItem(ptKey('sidebar'), sidebarCollapsed ? 'collapsed' : 'expanded'); } catch (e) {}
+            });
+        }
 
-    // --- Timeframe buttons ---
-    tfButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Update active state
-            tfButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        // --- Ticker input ---
+        if (tickerInput) {
+            tickerInput.addEventListener('input', function() {
+                var pos = tickerInput.selectionStart;
+                tickerInput.value = tickerInput.value.toUpperCase();
+                tickerInput.setSelectionRange(pos, pos);
+            });
 
-            const tf = btn.dataset.tf;
-            layoutManager.setTimeframe(tf);
+            tickerInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    var raw = tickerInput.value.trim().toUpperCase();
+                    var clean = raw.replace(/[^A-Z]/g, '');
+                    if (clean.length > 10) clean = clean.slice(0, 10);
+                    if (clean && layoutManager) {
+                        layoutManager.setTicker(clean);
+                        tickerInput.value = clean;
+                        try { localStorage.setItem(ptKey('ticker'), clean); } catch (ex) {}
+                    }
+                    tickerInput.blur();
+                }
+            });
 
-            // Save preference
-            localStorage.setItem('pt_timeframe', tf);
-        });
-    });
+            tickerInput.addEventListener('focus', function() { tickerInput.select(); });
+        }
 
-    // Restore saved timeframe
-    const savedTf = localStorage.getItem('pt_timeframe');
-    if (savedTf) {
-        tfButtons.forEach(b => {
-            b.classList.toggle('active', b.dataset.tf === savedTf);
-        });
+        // --- Timeframe buttons ---
+        if (tfButtons && tfButtons.length > 0) {
+            Array.prototype.forEach.call(tfButtons, function(btn) {
+                btn.addEventListener('click', function() {
+                    Array.prototype.forEach.call(tfButtons, function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    var tf = btn.dataset.tf;
+                    if (layoutManager) layoutManager.setTimeframe(tf);
+                    try { localStorage.setItem(ptKey('timeframe'), tf); } catch (e) {}
+                });
+            });
+        }
+
+        // Restore saved timeframe
+        var savedTf = null;
+        try { savedTf = localStorage.getItem(ptKey('timeframe')); } catch (e) {}
+        if (savedTf && tfButtons) {
+            Array.prototype.forEach.call(tfButtons, function(b) {
+                b.classList.toggle('active', b.dataset.tf === savedTf);
+            });
+        }
+
+        // --- Layout buttons ---
+        if (layoutButtons && layoutButtons.length > 0) {
+            Array.prototype.forEach.call(layoutButtons, function(btn) {
+                btn.addEventListener('click', function() {
+                    Array.prototype.forEach.call(layoutButtons, function(b) { b.classList.remove('active'); });
+                    btn.classList.add('active');
+                    var layout = btn.dataset.layout;
+                    if (layoutManager) layoutManager.setLayout(layout);
+                    try { localStorage.setItem(ptKey('layout'), layout); } catch (e) {}
+                });
+            });
+        }
+
+        // Restore saved layout
+        var savedLayout = null;
+        try { savedLayout = localStorage.getItem(ptKey('layout')); } catch (e) {}
+        if (savedLayout && layoutButtons) {
+            Array.prototype.forEach.call(layoutButtons, function(b) {
+                b.classList.toggle('active', b.dataset.layout === savedLayout);
+            });
+        }
+
+        // --- Draw tool toggle ---
+        var drawToggle = document.getElementById('draw-toggle');
+        if (drawToggle && typeof setDrawToolActive === 'function') {
+            drawToggle.addEventListener('click', function () {
+                var active = !drawToggle.classList.contains('active');
+                drawToggle.classList.toggle('active', active);
+                setDrawToolActive(active);
+            });
+            // Deactivate on layout change (lines get destroyed on panel recreate)
+            if (layoutButtons) {
+                Array.prototype.forEach.call(layoutButtons, function(btn) {
+                    btn.addEventListener('click', function () {
+                        if (drawToggle.classList.contains('active')) {
+                            drawToggle.classList.remove('active');
+                            setDrawToolActive(false);
+                        }
+                    });
+                });
+            }
+        }
+
+        return { savedTf: savedTf, savedLayout: savedLayout };
+    } catch (e) {
+        console.error('Toolbar init failed:', e);
+        return { savedTf: null, savedLayout: null };
     }
-
-    // --- Layout buttons ---
-    layoutButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            layoutButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            const layout = btn.dataset.layout;
-            layoutManager.setLayout(layout);
-
-            localStorage.setItem('pt_layout', layout);
-        });
-    });
-
-    // Restore saved layout
-    const savedLayout = localStorage.getItem('pt_layout');
-    if (savedLayout) {
-        layoutButtons.forEach(b => {
-            b.classList.toggle('active', b.dataset.layout === savedLayout);
-        });
-    }
-
-    return { savedTf, savedLayout };
 }

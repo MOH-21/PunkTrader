@@ -24,13 +24,24 @@ class ChartPanel {
         // Header overlay
         const header = document.createElement('div');
         header.className = 'panel-header';
-        header.innerHTML = `
-            <span class="panel-ticker">${this.ticker}</span>
-            <span class="panel-tf">${this._tfLabel()}</span>
-            <div class="ohlcv-legend" id="legend-${this.container.id}"></div>
-        `;
+
+        const tickerSpan = document.createElement('span');
+        tickerSpan.className = 'panel-ticker';
+        tickerSpan.textContent = this.ticker;
+
+        const tfSpan = document.createElement('span');
+        tfSpan.className = 'panel-tf';
+        tfSpan.textContent = this._tfLabel();
+
+        const legendDiv = document.createElement('div');
+        legendDiv.className = 'ohlcv-legend';
+        legendDiv.id = 'legend-' + this.container.id;
+
+        header.appendChild(tickerSpan);
+        header.appendChild(tfSpan);
+        header.appendChild(legendDiv);
         this.container.appendChild(header);
-        this._legendEl = header.querySelector('.ohlcv-legend');
+        this._legendEl = legendDiv;
 
         // Loading indicator
         this._loadingEl = document.createElement('div');
@@ -41,13 +52,13 @@ class ChartPanel {
         // Create chart
         this.chart = LightweightCharts.createChart(this.container, {
             layout: {
-                background: { type: 'solid', color: '#0C0C0C' },
+                background: { type: 'solid', color: '#1C1C1C' },
                 textColor: '#888880',
                 fontSize: 11,
             },
             grid: {
-                vertLines: { color: '#181818' },
-                horzLines: { color: '#181818' },
+                vertLines: { color: '#252525' },
+                horzLines: { color: '#252525' },
             },
             crosshair: {
                 mode: LightweightCharts.CrosshairMode.Normal,
@@ -69,7 +80,7 @@ class ChartPanel {
             handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true },
         });
 
-        // Candlestick series
+        // Candlestick series with clearly visible colors
         this.candleSeries = this.chart.addCandlestickSeries({
             upColor: '#00FF41',
             downColor: '#FF2424',
@@ -77,6 +88,7 @@ class ChartPanel {
             borderDownColor: '#FF2424',
             wickUpColor: '#00FF41',
             wickDownColor: '#FF2424',
+            priceFormat: { type: 'price', precision: 2, minMove: 0.01 },
         });
 
         // Crosshair OHLCV legend
@@ -84,8 +96,12 @@ class ChartPanel {
 
         // Resize observer
         this.resizeObserver = new ResizeObserver(() => {
-            const { width, height } = this.container.getBoundingClientRect();
-            this.chart.resize(width, height);
+            try {
+                const { width, height } = this.container.getBoundingClientRect();
+                if (width > 0 && height > 0) {
+                    this.chart.resize(width, height);
+                }
+            } catch (e) {}
         });
         this.resizeObserver.observe(this.container);
 
@@ -94,6 +110,9 @@ class ChartPanel {
         this._countdownEl.className = 'candle-countdown';
         this.container.appendChild(this._countdownEl);
         this._startCountdown();
+
+        // Draw tool
+        if (typeof initDrawTool === 'function') initDrawTool(this);
     }
 
     _startCountdown() {
@@ -251,6 +270,7 @@ class ChartPanel {
         if (this._dataFeed) this._dataFeed.disconnect();
         if (this.resizeObserver) this.resizeObserver.disconnect();
         if (typeof _clearLevelOverlays === 'function') _clearLevelOverlays(this);
+        if (typeof clearDrawTool === 'function') clearDrawTool(this);
         if (this.chart) this.chart.remove();
         this.container.innerHTML = '';
     }

@@ -1,6 +1,32 @@
 /* PunkTrader — Punk Brutalist */
 
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@font-face {
+  font-family: 'Bebas Neue';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/static/fonts/BebasNeue-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  src: url('/static/fonts/IBMPlexMono-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  src: url('/static/fonts/IBMPlexMono-Medium.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 600;
+  src: url('/static/fonts/IBMPlexMono-SemiBold.ttf') format('truetype');
+}
 
 * {
     margin: 0;
@@ -81,6 +107,22 @@ html, body {
     flex-shrink: 0;
 }
 
+/* ─── Sidebar toggle ─────────────────────────────────────────── */
+
+#sidebar-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 4px 4px 4px 8px;
+    line-height: 1;
+    transition: color 0.1s;
+    flex-shrink: 0;
+}
+
+#sidebar-toggle:hover { color: var(--text-2); }
+
 /* ─── Ticker input ───────────────────────────────────────────── */
 
 #ticker-input {
@@ -130,6 +172,33 @@ html, body {
 }
 
 .tf-btn.active {
+    background: var(--accent);
+    color: #000;
+}
+
+/* Draw tool toggle */
+.draw-toggle-btn {
+    background: transparent;
+    color: var(--text-2);
+    border: none;
+    border-radius: 0;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-family: var(--font-d);
+    font-size: 13px;
+    letter-spacing: 1px;
+    transition: color 0.1s, background 0.1s;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.draw-toggle-btn:hover {
+    color: var(--text);
+    background: var(--bg-3);
+}
+
+.draw-toggle-btn.active {
     background: var(--accent);
     color: #000;
 }
@@ -184,6 +253,7 @@ html, body {
     background: var(--bg);
     position: relative;
     overflow: hidden;
+    min-height: 100px;
 }
 
 .chart-panel.active {
@@ -254,6 +324,15 @@ html, body {
     grid-template-columns: 200px 1fr;
     grid-template-rows: 48px 1fr 28px;
     height: 100%;
+    transition: grid-template-columns 0.18s ease;
+}
+
+#app-shell.sidebar-collapsed {
+    grid-template-columns: 0 1fr;
+}
+
+#app-shell.sidebar-collapsed #sidebar {
+    border-right: none;
 }
 
 #toolbar    { grid-column: 1 / -1; grid-row: 1; }
@@ -415,12 +494,12 @@ html, body {
     right: 70px;
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    height: 17px;
-    padding: 0 5px 0 0;
+    gap: 8px;
+    height: 24px;
+    padding: 0 7px 0 0;
     background: var(--bg);
     border: 1px solid currentColor;
-    border-left-width: 3px;
+    border-left-width: 4px;
     pointer-events: none;
     z-index: 5;
     transform: translateY(-50%);
@@ -430,16 +509,16 @@ html, body {
 
 .level-label .lv-name {
     font-family: var(--font-d);
-    font-size: 11px;
-    letter-spacing: 0.5px;
+    font-size: 14px;
+    letter-spacing: 0.8px;
     color: currentColor;
-    padding-left: 4px;
+    padding-left: 5px;
     line-height: 1;
 }
 
 .level-label .lv-price {
     font-family: var(--font-m);
-    font-size: 9px;
+    font-size: 12px;
     font-feature-settings: "tnum";
     color: var(--text);
     line-height: 1;
@@ -462,3 +541,52 @@ html, body {
 
 #status-strip .session-active { color: var(--accent); }
 #status-strip .session-dim    { color: var(--text-3); }
+
+/* ─── Draw tool popup ────────────────────────────────────────── */
+
+.draw-line-popup {
+    position: absolute;
+    z-index: 50;
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+    pointer-events: auto;
+}
+
+.dl-popup-inner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-m);
+    font-size: 11px;
+}
+
+.dl-popup-label {
+    color: var(--text-2);
+    user-select: none;
+}
+
+.dl-color-input {
+    width: 36px;
+    height: 26px;
+    border: 1px solid var(--border);
+    padding: 1px;
+    cursor: pointer;
+    background: none;
+}
+
+.dl-delete-btn {
+    background: transparent;
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-family: var(--font-m);
+    font-size: 11px;
+    padding: 3px 10px;
+    cursor: pointer;
+    margin-left: 4px;
+}
+
+.dl-delete-btn:hover {
+    background: rgba(255,36,36,0.1);
+}

@@ -3,12 +3,12 @@
  */
 
 const LEVEL_COLORS = {
-    PDH: '#4f9cf9',
-    PDL: '#2563a8',  // muted blue for lows
-    PMH: '#f97316',
-    PML: '#a34c0d',  // muted orange for lows
-    ORH: '#CFFF04',
-    ORL: '#7a9902',  // muted accent for lows
+    PDH: '#FF00FF',      // Magenta
+    PDL: '#6BA3FF',      // Lighter blue
+    PMH: '#90EE90',      // Light green
+    PML: '#FF6B6B',      // Light red
+    ORH: '#CFFF04',      // Lime/accent
+    ORL: '#FFB347',      // Light orange
 };
 
 // Human-readable short names for labels
@@ -62,9 +62,17 @@ function _makeLevelLabelEl(panel, name, price, color) {
     const el = document.createElement('div');
     el.className = 'level-label';
     el.style.color = color;
-    el.innerHTML =
-        `<span class="lv-name">${LEVEL_LABELS[name] || name}</span>` +
-        `<span class="lv-price">${price.toFixed(2)}</span>`;
+
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'lv-name';
+    nameSpan.textContent = LEVEL_LABELS[name] || name;
+
+    const priceSpan = document.createElement('span');
+    priceSpan.className = 'lv-price';
+    priceSpan.textContent = price.toFixed(2);
+
+    el.appendChild(nameSpan);
+    el.appendChild(priceSpan);
     panel.container.appendChild(el);
     return el;
 }

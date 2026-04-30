@@ -14,12 +14,15 @@
       row.dataset.ticker = ticker;
       row.innerHTML = `
         <div class="wl-slab"></div>
-        <div class="wl-ticker">${ticker}</div>
         <div class="wl-prices">
           <div class="wl-price">--</div>
           <div class="wl-change">--</div>
         </div>
       `;
+      const tickerDiv = document.createElement('div');
+      tickerDiv.className = 'wl-ticker';
+      tickerDiv.textContent = ticker;
+      row.insertBefore(tickerDiv, row.querySelector('.wl-prices'));
       row.addEventListener('click', handleRowClick);
       watchlistList.appendChild(row);
       tickerRows.set(ticker, row);
@@ -55,7 +58,8 @@
     window.layoutManager.setTicker(ticker);
     const tickerInput = document.getElementById('ticker-input');
     if (tickerInput) tickerInput.value = ticker;
-    localStorage.setItem('pt_ticker', ticker);
+    const ptKey = window.ptKey || function(n) { return 'pt_' + n; };
+    localStorage.setItem(ptKey('ticker'), ticker);
   }
 
   function subscribeToUpdates() {
@@ -92,7 +96,8 @@
   }
 
   function setActiveFromLocalStorage() {
-    const savedTicker = localStorage.getItem('pt_ticker');
+    const ptKey = window.ptKey || function(n) { return 'pt_' + n; };
+    const savedTicker = localStorage.getItem(ptKey('ticker'));
     if (savedTicker && tickerRows.has(savedTicker)) {
       const row = tickerRows.get(savedTicker);
       row.classList.add('active');
