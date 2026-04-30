@@ -62,30 +62,7 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (isTickerInput && e.key === 'L' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    return; // Let L through when typing in ticker input
-  }
-
-  if (e.shiftKey && e.key === 'L' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault();
-    if (typeof layoutManager !== 'undefined') {
-      const currentLayout = layoutManager.currentLayout;
-      const currentIndex = layoutCycle.indexOf(currentLayout);
-      const nextIndex = (currentIndex + 1) % layoutCycle.length;
-      const nextLayout = layoutCycle[nextIndex];
-      layoutManager.setLayout(nextLayout);
-      const chartGrid = document.getElementById('chart-grid');
-      if (chartGrid) {
-        chartGrid.classList.add('layout-flash');
-        setTimeout(() => {
-          chartGrid.classList.remove('layout-flash');
-        }, 100);
-      }
-    }
-    return;
-  }
-
-  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '7' && !isTickerInput) {
+  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key >= '1' && e.key <= '7' && !isInput) {
     e.preventDefault();
     const tf = timeframeMap[e.key];
     if (typeof layoutManager !== 'undefined' && layoutManager.setTimeframe) {
@@ -94,8 +71,8 @@ document.addEventListener('keydown', (e) => {
     return;
   }
 
-  if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && e.key.length === 1 && /^[a-z]$/i.test(e.key)) {
-    if (tickerInput && document.activeElement !== tickerInput) {
+  if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key.length === 1 && /^[a-zA-Z]$/.test(e.key) && !isInput) {
+    if (tickerInput) {
       tickerInput.focus();
       tickerInput.value = '';
       tickerInput.classList.add('flash');
