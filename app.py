@@ -2,7 +2,7 @@
 PunkTrader — Flask Application
 
 Serves the charting frontend and provides REST endpoints for historical
-bar data, key levels, and VWAP. SSE endpoint for real-time streaming.
+bar data, key levels. SSE endpoint for real-time streaming.
 """
 
 import json
@@ -21,7 +21,7 @@ import config
 from data.fmp_rest import fetch_bars, get_api
 from data.fmp_batch_poller import FMPBatchPoller
 from data.candle_builder import CandleBuilder
-from data.vwap import compute_vwap
+
 from levels.alerts import AlertState, evaluate_bar, check_proximity
 from levels.compute import get_levels
 import levels.cache as level_cache
@@ -352,21 +352,6 @@ def api_quote(ticker):
         data = r.json()
         q = data[0] if isinstance(data, list) and data else {}
         return jsonify({"price": q.get("price"), "changePercentage": q.get("changePercentage")})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
-
-
-@app.route("/api/vwap/<ticker>")
-def api_vwap(ticker):
-    """Compute VWAP for today's session."""
-    try:
-        ticker = _sanitize_ticker(ticker)
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
-    try:
-        api = get_api()
-        vwap_data = compute_vwap(api, ticker)
-        return jsonify(vwap_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 

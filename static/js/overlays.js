@@ -1,5 +1,5 @@
 /**
- * Overlays — key level lines, VWAP, and alert markers on a ChartPanel.
+ * Overlays — key level lines and alert markers on a ChartPanel.
  */
 
 const LEVEL_COLORS = {
@@ -134,64 +134,6 @@ async function loadLevels(panel) {
     } catch (err) {
         console.error('Failed to load levels:', err);
     }
-}
-
-/**
- * Load and draw VWAP on a chart panel.
- */
-async function loadVWAP(panel) {
-    // Prevent concurrent VWAP loads on same panel
-    if (panel._vwapLoading) return;
-    panel._vwapLoading = true;
-
-    if (panel._vwapSeries) {
-        try { panel.chart.removeSeries(panel._vwapSeries); } catch (e) {}
-        panel._vwapSeries = null;
-    }
-
-    try {
-        const resp = await fetch(`/api/vwap/${panel.ticker}`);
-        const data = await resp.json();
-
-        if (!Array.isArray(data) || data.length === 0) {
-            panel._vwapLoading = false;
-            return;
-        }
-
-        panel._vwapSeries = panel.chart.addLineSeries({
-            color: '#8b5cf6',
-            lineWidth: 2,
-            title: 'VWAP',
-            priceLineVisible: false,
-            lastValueVisible: true,
-        });
-
-        panel._vwapSeries.setData(data);
-    } catch (err) {
-        console.error('Failed to load VWAP:', err);
-    } finally {
-        panel._vwapLoading = false;
-    }
-}
-
-var _vwapEnabled = true;
-
-function toggleVWAP(enabled) {
-    _vwapEnabled = enabled;
-    if (!window.layoutManager) return;
-    var panels = window.layoutManager.panels;
-    for (var i = 0; i < panels.length; i++) {
-        if (enabled) {
-            loadVWAP(panels[i]);
-        } else if (panels[i]._vwapSeries) {
-            try { panels[i].chart.removeSeries(panels[i]._vwapSeries); } catch (e) {}
-            panels[i]._vwapSeries = null;
-        }
-    }
-}
-
-function isVWAPEnabled() {
-    return _vwapEnabled;
 }
 
 /**

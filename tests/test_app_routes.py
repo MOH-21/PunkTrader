@@ -118,34 +118,6 @@ class TestApiLevels:
         assert "error" in resp.get_json()
 
 
-class TestApiVWAP:
-    _MOCK_VWAP = [{"time": 1000, "value": 150.25}]
-
-    def test_success_returns_200(self, client):
-        with patch("app.get_api", return_value=MagicMock()), \
-             patch("app.compute_vwap", return_value=self._MOCK_VWAP):
-            resp = client.get("/api/vwap/AAPL")
-        assert resp.status_code == 200
-
-    def test_returns_vwap_data(self, client):
-        with patch("app.get_api", return_value=MagicMock()), \
-             patch("app.compute_vwap", return_value=self._MOCK_VWAP):
-            resp = client.get("/api/vwap/AAPL")
-        data = resp.get_json()
-        assert data[0]["value"] == 150.25
-
-    def test_error_returns_400(self, client):
-        with patch("app.get_api", side_effect=Exception("no data")):
-            resp = client.get("/api/vwap/AAPL")
-        assert resp.status_code == 400
-
-    def test_empty_vwap_returns_empty_list(self, client):
-        with patch("app.get_api", return_value=MagicMock()), \
-             patch("app.compute_vwap", return_value=[]):
-            resp = client.get("/api/vwap/AAPL")
-        assert resp.get_json() == []
-
-
 class TestApiQuote:
     def _mock_requests_response(self, price, change_pct):
         mock_r = MagicMock()

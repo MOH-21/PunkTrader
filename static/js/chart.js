@@ -254,9 +254,8 @@ class ChartPanel {
                 this._renderLegendBar(data[data.length - 1]);
             }
 
-            // Load overlays (key levels + VWAP)
+            // Load overlays (key levels)
             if (typeof loadLevels === 'function') loadLevels(this);
-            if (typeof loadVWAP === 'function' && typeof isVWAPEnabled === 'function' && isVWAPEnabled()) loadVWAP(this);
 
             // Restore draw lines persisted across layout changes
             if (this._drawLineConfigs && this._drawLineConfigs.length > 0 && typeof restoreDrawLines === 'function') {

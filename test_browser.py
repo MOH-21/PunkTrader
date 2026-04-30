@@ -86,7 +86,7 @@ def run_tests(url, tickers):
 
             # ── API spot check ────────────────────────────────────
             api_results = {}
-            for endpoint in ("bars", "levels", "vwap"):
+            for endpoint in ("bars", "levels"):
                 path = f"/api/{endpoint}/{ticker.upper()}?timeframe=5Min"
                 resp = page.request.get(f"{url}{path}")
                 body = resp.json()
@@ -111,7 +111,7 @@ def run_tests(url, tickers):
 
             print(f"  {status} bars:   {api_results.get('bars', '?')}")
             print(f"  {status} levels: {api_results.get('levels', '?')}")
-            print(f"  {status} vwap:   {api_results.get('vwap', '?')}")
+
 
             if network_failures:
                 for f in network_failures:
