@@ -31,8 +31,9 @@ DEFAULT_TIMEFRAME = os.environ.get("DEFAULT_TIMEFRAME", "5Min")
 # Watchlist for key level pre-loading
 # QQQ and GOOG require FMP paid plan — use GOOGL (Class A) instead
 _DEFAULT_WATCHLIST = [
-    "SPY", "AAPL", "TSLA", "AMD", "NVDA", "PLTR",
-    "MSFT", "AMZN", "META", "GOOGL",
+    "QQQ", "SPY", "SMH", "NVDA", "AMD", "INTC",
+    "TSLA", "PLTR", "META", "AMZN", "GOOG", "AAPL",
+    "MSFT", "SNDK", "MU",
 ]
 _wl = os.environ.get("WATCHLIST", "")
 WATCHLIST = [s.strip() for s in _wl.split(",") if s.strip()] if _wl else _DEFAULT_WATCHLIST

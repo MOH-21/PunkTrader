@@ -1,118 +1,218 @@
 (function() {
-  const sidebar = document.querySelector('#sidebar');
-  const watchlistList = document.querySelector('.watchlist-list');
-  const tickersStr = sidebar?.dataset.watchlist || '';
-  const tickers = tickersStr.split(',').filter(t => t.trim());
-  const tickerRows = new Map();
-  const lastTickTimestamp = new Map();
-  let stalennessInterval;
+  var sidebar = document.querySelector('#sidebar');
+  var watchlistList = document.querySelector('.watchlist-list');
+  var tickersStr = sidebar && sidebar.dataset.watchlist ? sidebar.dataset.watchlist : '';
+  var configTickers = tickersStr.split(',').filter(function(t) { return t.trim(); });
+
+  // Merge config tickers with user-added tickers from localStorage
+  function _extraKey() {
+    var k = 'pt_watchlist_extra';
+    if (window.ptKey) { var n = window.ptKey('watchlist_extra'); if (n) k = n; }
+    return k;
+  }
+
+  function loadExtraTickers() {
+    try { var v = localStorage.getItem(_extraKey()); if (v) return v.split(',').filter(function(t) { return t.trim(); }); } catch (e) {}
+    return [];
+  }
+
+  function saveExtraTickers(extra) {
+    try { localStorage.setItem(_extraKey(), extra.join(',')); } catch (e) {}
+  }
+
+  var extraTickers = loadExtraTickers();
+  var allTickers = configTickers.concat(extraTickers).filter(function(t, i, a) { return a.indexOf(t) === i; }); // dedupe
+  var tickerRows = new Map();
+  var lastTickTimestamp = new Map();
+  var stalennessInterval;
 
   function renderRows() {
-    tickers.forEach(ticker => {
-      const row = document.createElement('div');
-      row.className = 'watchlist-row';
-      row.dataset.ticker = ticker;
-      row.innerHTML = `
-        <div class="wl-slab"></div>
-        <div class="wl-prices">
-          <div class="wl-price">--</div>
-          <div class="wl-change">--</div>
-        </div>
-      `;
-      const tickerDiv = document.createElement('div');
-      tickerDiv.className = 'wl-ticker';
-      tickerDiv.textContent = ticker;
-      row.insertBefore(tickerDiv, row.querySelector('.wl-prices'));
-      row.addEventListener('click', handleRowClick);
-      watchlistList.appendChild(row);
-      tickerRows.set(ticker, row);
-      lastTickTimestamp.set(ticker, Date.now());
+    allTickers.forEach(function(ticker) {
+      _createRow(ticker);
     });
+    _renderAddInput();
+  }
+
+  function _createRow(ticker) {
+    var row = document.createElement('div');
+    row.className = 'watchlist-row';
+    row.dataset.ticker = ticker;
+
+    var slab = document.createElement('div');
+    slab.className = 'wl-slab';
+    row.appendChild(slab);
+
+    var tickerDiv = document.createElement('div');
+    tickerDiv.className = 'wl-ticker';
+    tickerDiv.textContent = ticker;
+    row.appendChild(tickerDiv);
+
+    var pricesDiv = document.createElement('div');
+    pricesDiv.className = 'wl-prices';
+
+    var priceEl = document.createElement('div');
+    priceEl.className = 'wl-price';
+    priceEl.textContent = '--';
+    pricesDiv.appendChild(priceEl);
+
+    var changeEl = document.createElement('div');
+    changeEl.className = 'wl-change';
+    changeEl.textContent = '--';
+    pricesDiv.appendChild(changeEl);
+
+    row.appendChild(pricesDiv);
+
+    // Remove button — only for user-added (non-config) tickers
+    if (configTickers.indexOf(ticker) === -1) {
+      var removeBtn = document.createElement('span');
+      removeBtn.className = 'wl-remove';
+      removeBtn.textContent = '×';
+      removeBtn.title = 'Remove from watchlist';
+      removeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        removeTicker(ticker);
+      });
+      row.appendChild(removeBtn);
+    }
+
+    row.addEventListener('click', handleRowClick);
+    watchlistList.appendChild(row);
+    tickerRows.set(ticker, row);
+    lastTickTimestamp.set(ticker, Date.now());
+  }
+
+  function _renderAddInput() {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'wl-add-wrapper';
+
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'wl-add-input';
+    input.placeholder = '+ ADD TICKER';
+    input.spellcheck = false;
+    input.autocomplete = 'off';
+
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        var raw = input.value.trim().toUpperCase();
+        var clean = raw.replace(/[^A-Z]/g, '');
+        if (clean.length > 10) clean = clean.slice(0, 10);
+        if (clean) {
+          addTicker(clean);
+          input.value = '';
+        }
+      }
+    });
+
+    wrapper.appendChild(input);
+    watchlistList.appendChild(wrapper);
+  }
+
+  function addTicker(ticker) {
+    if (tickerRows.has(ticker)) return;
+    allTickers.push(ticker);
+    var row = _createRow(ticker);
+    extraTickers.push(ticker);
+    saveExtraTickers(extraTickers);
+    // Fetch initial price immediately
+    fetchQuote(ticker);
+  }
+
+  function removeTicker(ticker) {
+    if (configTickers.indexOf(ticker) !== -1) return; // can't remove config tickers
+    var row = tickerRows.get(ticker);
+    if (row) row.remove();
+    tickerRows.delete(ticker);
+    lastTickTimestamp.delete(ticker);
+    allTickers = allTickers.filter(function(t) { return t !== ticker; });
+    extraTickers = extraTickers.filter(function(t) { return t !== ticker; });
+    saveExtraTickers(extraTickers);
+  }
+
+  function fetchQuote(ticker) {
+    fetch('/api/quote/' + ticker)
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        var row = tickerRows.get(ticker);
+        if (!row) return;
+        var priceEl = row.querySelector('.wl-price');
+        var changeEl = row.querySelector('.wl-change');
+        if (priceEl) priceEl.textContent = data.price.toFixed(2);
+        if (changeEl) {
+          var pct = data.changePercentage;
+          changeEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+          changeEl.className = 'wl-change ' + (pct >= 0 ? 'up' : 'down');
+        }
+      })
+      .catch(function(err) { console.error('Failed to fetch quote for ' + ticker + ':', err); });
   }
 
   function fetchInitialPrices() {
-    tickers.forEach(ticker => {
-      fetch(`/api/quote/${ticker}`)
-        .then(res => res.json())
-        .then(data => {
-          const row = tickerRows.get(ticker);
-          if (row) {
-            const priceEl = row.querySelector('.wl-price');
-            const changeEl = row.querySelector('.wl-change');
-            priceEl.textContent = data.price.toFixed(2);
-            const pct = data.changePercentage;
-            changeEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-            changeEl.className = 'wl-change ' + (pct >= 0 ? 'up' : 'down');
-          }
-        })
-        .catch(err => console.error(`Failed to fetch quote for ${ticker}:`, err));
+    allTickers.forEach(function(ticker) {
+      fetchQuote(ticker);
     });
   }
 
   function handleRowClick(evt) {
-    const row = evt.currentTarget;
-    const ticker = row.dataset.ticker;
+    var row = evt.currentTarget;
+    var ticker = row.dataset.ticker;
     row.classList.add('flash');
-    setTimeout(() => row.classList.remove('flash'), 80);
+    setTimeout(function() { row.classList.remove('flash'); }, 80);
     if (!window.layoutManager) return;
     window.layoutManager.setTicker(ticker);
-    const tickerInput = document.getElementById('ticker-input');
+    var tickerInput = document.getElementById('ticker-input');
     if (tickerInput) tickerInput.value = ticker;
-    const ptKey = window.ptKey || function(n) { return 'pt_' + n; };
-    localStorage.setItem(ptKey('ticker'), ticker);
+    var key = 'pt_ticker';
+    if (window.ptKey) key = window.ptKey('ticker');
+    try { localStorage.setItem(key, ticker); } catch (e) {}
   }
 
   function subscribeToUpdates() {
-    const eventSource = new EventSource('/stream/watchlist');
-    eventSource.addEventListener('price', (evt) => {
-      const data = JSON.parse(evt.data);
-      const ticker = data.ticker;
-      const price = data.price;
-      const row = tickerRows.get(ticker);
+    var eventSource = new EventSource('/stream/watchlist');
+    eventSource.addEventListener('price', function(evt) {
+      var data = JSON.parse(evt.data);
+      var ticker = data.ticker;
+      var price = data.price;
+      var row = tickerRows.get(ticker);
       if (row) {
-        const priceEl = row.querySelector('.wl-price');
-        priceEl.textContent = price.toFixed(2);
+        var priceEl = row.querySelector('.wl-price');
+        if (priceEl) priceEl.textContent = price.toFixed(2);
         lastTickTimestamp.set(ticker, Date.now());
         row.classList.add('tick');
-        setTimeout(() => row.classList.remove('tick'), 250);
+        setTimeout(function() { row.classList.remove('tick'); }, 250);
       }
     });
   }
 
   function monitorStaleness() {
-    stalennessInterval = setInterval(() => {
-      const now = Date.now();
-      tickers.forEach(ticker => {
-        const row = tickerRows.get(ticker);
-        const lastTick = lastTickTimestamp.get(ticker);
-        const elapsed = now - lastTick;
-        if (elapsed > 10000) {
-          row.classList.add('stale');
-        } else {
-          row.classList.remove('stale');
-        }
+    stalennessInterval = setInterval(function() {
+      var now = Date.now();
+      allTickers.forEach(function(ticker) {
+        var row = tickerRows.get(ticker);
+        if (!row) return;
+        var lastTick = lastTickTimestamp.get(ticker);
+        var elapsed = now - lastTick;
+        row.classList.toggle('stale', elapsed > 10000);
       });
     }, 5000);
   }
 
   function setActiveFromLocalStorage() {
-    const ptKey = window.ptKey || function(n) { return 'pt_' + n; };
-    const savedTicker = localStorage.getItem(ptKey('ticker'));
+    var key = 'pt_ticker';
+    if (window.ptKey) key = window.ptKey('ticker');
+    var savedTicker = null;
+    try { savedTicker = localStorage.getItem(key); } catch (e) {}
     if (savedTicker && tickerRows.has(savedTicker)) {
-      const row = tickerRows.get(savedTicker);
+      var row = tickerRows.get(savedTicker);
       row.classList.add('active');
     }
   }
 
   function listenToActivePanelChanges() {
-    document.addEventListener('pt:active-panel-changed', (evt) => {
-      const newTicker = evt.detail.ticker;
-      tickerRows.forEach((row, ticker) => {
-        if (ticker === newTicker) {
-          row.classList.add('active');
-        } else {
-          row.classList.remove('active');
-        }
+    document.addEventListener('pt:active-panel-changed', function(evt) {
+      var newTicker = evt.detail.ticker;
+      tickerRows.forEach(function(row, ticker) {
+        row.classList.toggle('active', ticker === newTicker);
       });
     });
   }

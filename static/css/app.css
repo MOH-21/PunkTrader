@@ -375,7 +375,7 @@ html, body {
 
 .watchlist-row {
     display: grid;
-    grid-template-columns: 4px 1fr auto;
+    grid-template-columns: 4px 1fr auto 24px;
     height: 44px;
     align-items: center;
     cursor: pointer;
@@ -433,6 +433,58 @@ html, body {
 
 .watchlist-row.stale .wl-price,
 .watchlist-row.stale .wl-change { color: var(--text-3); }
+
+/* ─── Watchlist remove button ────────────────────────────────── */
+
+.wl-remove {
+    color: var(--text-3);
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    text-align: center;
+    user-select: none;
+    display: none;
+}
+
+.watchlist-row:hover .wl-remove {
+    display: block;
+}
+
+.wl-remove:hover {
+    color: var(--red);
+}
+
+/* ─── Watchlist add input ────────────────────────────────────── */
+
+.wl-add-wrapper {
+    padding: 8px 10px;
+    border-top: 1px solid var(--border);
+}
+
+.wl-add-input {
+    width: 100%;
+    background: transparent;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    border-radius: 0;
+    padding: 6px 8px;
+    font-family: var(--font-m);
+    font-size: 11px;
+    letter-spacing: 1px;
+    outline: none;
+    transition: border-color 0.1s, color 0.1s;
+}
+
+.wl-add-input:focus {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.wl-add-input::placeholder {
+    color: var(--text-3);
+    letter-spacing: 1px;
+}
 
 /* ─── Watchlist animations ───────────────────────────────────── */
 
