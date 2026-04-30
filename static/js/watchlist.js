@@ -111,11 +111,16 @@
   function addTicker(ticker) {
     if (tickerRows.has(ticker)) return;
     allTickers.push(ticker);
-    var row = _createRow(ticker);
     extraTickers.push(ticker);
     saveExtraTickers(extraTickers);
-    // Fetch initial price immediately
-    fetchQuote(ticker);
+    _createRow(ticker);
+    // Subscribe backend + get initial quote
+    fetch('/api/watchlist/add/' + ticker)
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        _updateRowPrice(ticker, data);
+      })
+      .catch(function(err) { console.error('Failed to add ticker ' + ticker + ':', err); });
   }
 
   function removeTicker(ticker) {
@@ -127,22 +132,30 @@
     allTickers = allTickers.filter(function(t) { return t !== ticker; });
     extraTickers = extraTickers.filter(function(t) { return t !== ticker; });
     saveExtraTickers(extraTickers);
+    // Unsubscribe backend
+    fetch('/api/watchlist/remove/' + ticker).catch(function() {});
+  }
+
+  function _updateRowPrice(ticker, data) {
+    var row = tickerRows.get(ticker);
+    if (!row) return;
+    if (data.price !== undefined && data.price !== null) {
+      var priceEl = row.querySelector('.wl-price');
+      if (priceEl) priceEl.textContent = data.price.toFixed(2);
+      var changeEl = row.querySelector('.wl-change');
+      if (changeEl && data.changePercentage !== undefined) {
+        var pct = data.changePercentage;
+        changeEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+        changeEl.className = 'wl-change ' + (pct >= 0 ? 'up' : 'down');
+      }
+    }
   }
 
   function fetchQuote(ticker) {
     fetch('/api/quote/' + ticker)
       .then(function(res) { return res.json(); })
       .then(function(data) {
-        var row = tickerRows.get(ticker);
-        if (!row) return;
-        var priceEl = row.querySelector('.wl-price');
-        var changeEl = row.querySelector('.wl-change');
-        if (priceEl) priceEl.textContent = data.price.toFixed(2);
-        if (changeEl) {
-          var pct = data.changePercentage;
-          changeEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-          changeEl.className = 'wl-change ' + (pct >= 0 ? 'up' : 'down');
-        }
+        _updateRowPrice(ticker, data);
       })
       .catch(function(err) { console.error('Failed to fetch quote for ' + ticker + ':', err); });
   }
@@ -151,6 +164,15 @@
     allTickers.forEach(function(ticker) {
       fetchQuote(ticker);
     });
+  }
+
+  function syncExtraTickers() {
+    if (extraTickers.length === 0) return;
+    fetch('/api/watchlist/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tickers: extraTickers }),
+    }).catch(function() {});
   }
 
   function handleRowClick(evt) {
@@ -219,6 +241,7 @@
 
   function init() {
     if (!sidebar || !watchlistList) return;
+    syncExtraTickers();
     renderRows();
     fetchInitialPrices();
     subscribeToUpdates();

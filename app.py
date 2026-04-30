@@ -357,6 +357,62 @@ def api_quote(ticker):
 
 
 # ---------------------------------------------------------------------------
+# Watchlist management (dynamic add/remove, persists in batch poller)
+# ---------------------------------------------------------------------------
+
+@app.route("/api/watchlist/add/<ticker>")
+def api_watchlist_add(ticker):
+    """Subscribe a ticker to the batch poller and return initial quote."""
+    try:
+        ticker = _sanitize_ticker(ticker)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    if state.stream:
+        state.stream.subscribe(ticker)
+    threading.Thread(target=state.load_levels, args=(ticker,), daemon=True).start()
+    try:
+        import requests as _req
+        r = _req.get(f"{config.FMP_BASE_URL}/quote",
+                     params={"symbol": ticker, "apikey": config.FMP_API_KEY},
+                     timeout=8)
+        r.raise_for_status()
+        data = r.json()
+        q = data[0] if isinstance(data, list) and data else {}
+        return jsonify({"price": q.get("price"), "changePercentage": q.get("changePercentage")})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/watchlist/remove/<ticker>")
+def api_watchlist_remove(ticker):
+    """Unsubscribe a user-added ticker from the batch poller."""
+    try:
+        ticker = _sanitize_ticker(ticker)
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    if state.stream and ticker.upper() not in [t.upper() for t in config.WATCHLIST]:
+        state.stream.unsubscribe(ticker)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/watchlist/sync", methods=["POST"])
+def api_watchlist_sync():
+    """Resubscribe user-added tickers after page reload."""
+    data = request.get_json(silent=True) or {}
+    tickers = data.get("tickers", [])
+    results = []
+    for raw in tickers:
+        try:
+            t = _sanitize_ticker(raw)
+            if state.stream and t not in [x.upper() for x in config.WATCHLIST]:
+                state.stream.subscribe(t)
+            results.append(t)
+        except ValueError:
+            pass
+    return jsonify({"subscribed": results})
+
+
+# ---------------------------------------------------------------------------
 # SSE streaming
 # ---------------------------------------------------------------------------
 
