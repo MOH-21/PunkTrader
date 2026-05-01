@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Flask stock chart app. Real-time data via FMP batch polling + candlestick frontend. REST serves historical bars, key levels (PDH/PDL, PMH/PML, ORH/ORL), VWAP. Live trades via SSE. FMP WebSocket = Premium ($59/mo) — not used; 5s batch polling = live path.
+Flask stock chart app. Real-time data: FMP batch polling + candlestick frontend. REST serves historical bars, key levels (PDH/PDL, PMH/PML, ORH/ORL), VWAP. Live trades via SSE. FMP WebSocket = Premium ($59/mo) — unused; 5s batch polling = live path.
 
 ## Project Structure
 

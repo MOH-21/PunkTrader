@@ -35,11 +35,8 @@ document.addEventListener('keydown', (e) => {
       tickerInput.value = tickerInputPreviousValue;
       return;
     }
+    // Enter key is handled by toolbar.js with full sanitization
     if (e.key === 'Enter') {
-      e.preventDefault();
-      if (typeof layoutManager !== 'undefined' && layoutManager.setTicker) {
-        layoutManager.setTicker(tickerInput.value.trim().toUpperCase());
-      }
       return;
     }
   }

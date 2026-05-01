@@ -67,7 +67,7 @@ class ChartPanel {
             },
             rightPriceScale: {
                 borderColor: '#222220',
-                scaleMargins: { top: 0.1, bottom: 0.08 },
+                scaleMargins: { top: 0.15, bottom: 0.15 },
             },
             timeScale: {
                 borderColor: '#222220',
@@ -96,6 +96,7 @@ class ChartPanel {
 
         // Resize observer
         this.resizeObserver = new ResizeObserver(() => {
+            if (this._destroyed) return;
             try {
                 const { width, height } = this.container.getBoundingClientRect();
                 if (width > 0 && height > 0) {
@@ -113,6 +114,9 @@ class ChartPanel {
 
         // Draw tool
         if (typeof initDrawTool === 'function') initDrawTool(this);
+
+        // Session markers
+        if (typeof initSessionMarkers === 'function') initSessionMarkers(this);
     }
 
     _startCountdown() {
@@ -124,6 +128,7 @@ class ChartPanel {
         };
 
         const tick = () => {
+            if (this._destroyed) return;
             const tf = TF_SECONDS[this.timeframe];
             if (!tf || !this._countdownEl) {
                 if (this._countdownEl) this._countdownEl.style.display = 'none';
@@ -160,7 +165,7 @@ class ChartPanel {
     }
 
     _updateLegend(param) {
-        if (!this._legendEl) return;
+        if (this._destroyed || !this._legendEl) return;
 
         if (!param || !param.time || !param.seriesData) {
             // Show last bar data when not hovering
@@ -245,6 +250,7 @@ class ChartPanel {
                 return;
             }
 
+            this.candleSeries.priceScale().applyOptions({ autoScale: true });
             this._lastData = data;
             this.candleSeries.setData(data);
             this.chart.timeScale().fitContent();
@@ -276,7 +282,7 @@ class ChartPanel {
     }
 
     updateCandle(candle) {
-        // Update or append a candle: {time, open, high, low, close}
+        if (this._destroyed) return;
         this.candleSeries.update(candle);
         this._renderLegendBar(candle);
 
@@ -289,11 +295,13 @@ class ChartPanel {
     }
 
     destroy() {
+        this._destroyed = true;
         if (this._countdownInterval) clearInterval(this._countdownInterval);
         if (this._dataFeed) this._dataFeed.disconnect();
         if (this.resizeObserver) this.resizeObserver.disconnect();
         if (typeof _clearLevelOverlays === 'function') _clearLevelOverlays(this);
         if (typeof clearDrawTool === 'function') clearDrawTool(this);
+        if (typeof clearSessionMarkers === 'function') clearSessionMarkers(this);
         if (this.chart) this.chart.remove();
         this.container.innerHTML = '';
     }

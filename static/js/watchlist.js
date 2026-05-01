@@ -99,8 +99,8 @@
         if (clean.length > 10) clean = clean.slice(0, 10);
         if (clean) {
           addTicker(clean);
-          input.value = '';
         }
+        input.value = '';
       }
     });
 
@@ -118,9 +118,16 @@
     fetch('/api/watchlist/add/' + ticker)
       .then(function(res) { return res.json(); })
       .then(function(data) {
+        if (data.error || data.price === null || data.price === undefined) {
+          removeTicker(ticker);
+          return;
+        }
         _updateRowPrice(ticker, data);
       })
-      .catch(function(err) { console.error('Failed to add ticker ' + ticker + ':', err); });
+      .catch(function(err) {
+        console.error('Failed to add ticker ' + ticker + ':', err);
+        removeTicker(ticker);
+      });
   }
 
   function removeTicker(ticker) {

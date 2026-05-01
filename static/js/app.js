@@ -29,17 +29,31 @@
         // Initialize layout manager
         const layoutManager = new LayoutManager(grid);
         window.layoutManager = layoutManager;
+        layoutManager._ptKey = ptKey;  // wire ptKey directly so saveSession never has to guess
 
         // Initialize toolbar and get saved preferences
         const toolbar = initToolbar(layoutManager, ptKey);
         var savedTf = toolbar ? toolbar.savedTf : null;
         var savedLayout = toolbar ? toolbar.savedLayout : null;
 
-        // Use saved preferences or defaults
+        // Restore saved session, or fall back to individual localStorage keys
+        var session = LayoutManager.loadSession(ptKey);
         var ticker, timeframe, layout;
-        try { ticker = localStorage.getItem(ptKey('ticker')) || defaultTicker; } catch (e) { ticker = defaultTicker; }
-        try { timeframe = savedTf || defaultTimeframe; } catch (e) { timeframe = defaultTimeframe; }
-        try { layout = savedLayout || '1x1'; } catch (e) { layout = '1x1'; }
+
+        if (session && session.panels && Object.keys(session.panels).length > 0) {
+            layout = session.layout || '1x1';
+            if (typeof session.activePanel === 'number') {
+                layoutManager.activePanelIndex = session.activePanel;
+            }
+            layoutManager._panelStates = session.panels;
+            var p0 = session.panels['0'] || {};
+            ticker = p0.ticker || defaultTicker;
+            timeframe = p0.timeframe || defaultTimeframe;
+        } else {
+            try { ticker = localStorage.getItem(ptKey('ticker')) || defaultTicker; } catch (e) { ticker = defaultTicker; }
+            try { timeframe = savedTf || defaultTimeframe; } catch (e) { timeframe = defaultTimeframe; }
+            try { layout = savedLayout || '1x1'; } catch (e) { layout = '1x1'; }
+        }
 
         tickerInput.value = ticker;
 
@@ -55,6 +69,26 @@
             errEl.textContent = 'Chart init error: ' + (e.message || e);
             grid.appendChild(errEl);
         }
+
+        // Sync toolbar buttons to restored state
+        if (session && session.panels && Object.keys(session.panels).length > 0) {
+            var ap = layoutManager.getActivePanel();
+            if (ap) {
+                Array.prototype.forEach.call(document.querySelectorAll('.tf-btn'), function(b) {
+                    b.classList.toggle('active', b.dataset.tf === ap.timeframe);
+                });
+            }
+            Array.prototype.forEach.call(document.querySelectorAll('.layout-btn'), function(b) {
+                b.classList.toggle('active', b.dataset.layout === layout);
+            });
+        }
+
+        // Safety net: persist session on unload in case state changed without explicit save
+        window.addEventListener('beforeunload', function() {
+            if (layoutManager && typeof layoutManager.saveSession === 'function') {
+                layoutManager.saveSession();
+            }
+        });
     } catch (e) {
         console.error('App init failed:', e);
         var err = document.getElementById('chart-grid');

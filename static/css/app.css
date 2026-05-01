@@ -143,6 +143,11 @@ html, body {
     box-shadow: 0 0 0 1px var(--accent), 0 0 8px rgba(207,255,4,0.2);
 }
 
+#ticker-input.input-error {
+    border-color: var(--red);
+    box-shadow: 0 0 0 1px var(--red), 0 0 8px rgba(255,36,36,0.3);
+}
+
 /* ─── Timeframe buttons ──────────────────────────────────────── */
 
 .tf-group {

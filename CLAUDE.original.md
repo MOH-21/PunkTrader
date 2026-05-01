@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Flask stock chart app. Real-time data via FMP (Financial Modeling Prep) batch polling + candlestick frontend. REST serves historical bars, key levels (PDH/PDL, PMH/PML, ORH/ORL), VWAP. Live trades pushed via SSE. FMP WebSocket requires Premium ($59/mo) — not used; batch polling at 5s is the live data path.
+Flask stock chart app. Real-time data via FMP batch polling + candlestick frontend. REST serves historical bars, key levels (PDH/PDL, PMH/PML, ORH/ORL), VWAP. Live trades via SSE. FMP WebSocket = Premium ($59/mo) — not used; 5s batch polling = live path.
 
 ## Project Structure
 
@@ -43,7 +43,7 @@ pip install -r requirements.txt
 python app.py        # starts on http://localhost:5000
 ```
 
-Config creds at `/settings` or edit `.env` directly.
+Creds at `/settings` or edit `.env` direct.
 
 ## Configuration (.env)
 
@@ -58,12 +58,12 @@ Config creds at `/settings` or edit `.env` directly.
 
 ## Key Architectural Points
 
-- **FMPBatchPoller** polls `/batch-quote?symbols=A,B,...` every 5s for all subscribed tickers in one request. Calls `on_trade` per ticker — `StreamState.on_trade` feeds `CandleBuilder`.
-- **CandleBuilder** buckets trades into per-minute OHLCV candles. Returns `(candle, is_new_bar)`. `is_new_bar=True` → `StreamState` broadcasts previous candle as finalized `bar` SSE event.
-- **DataFeed** (frontend) buckets SSE `trade`/`bar` events into panel timeframe. Three-way branch: forward (new bucket) / same (update in place) / old (chart-only, don't regress `_currentCandle`).
-- **"Fake UTC" epoch**: `calendar.timegm(local_timetuple)` used in both `fmp_rest.py` and `fmp_batch_poller.py` so lightweight-charts displays timestamps in local timezone without offset.
-- **Candle countdown timer**: `chart.js` renders MM:SS until next candle close on the price scale; positioned via `priceToCoordinate()` updated every second. Hidden for 1Day/1Week.
-- **AlertState** tracks edge-crossing per (ticker, level) — alerts fire once per cross, not every tick.
+- **FMPBatchPoller** polls `/batch-quote?symbols=A,B,...` every 5s, all subscribed tickers, one request. Calls `on_trade` per ticker → `StreamState.on_trade` feeds `CandleBuilder`.
+- **CandleBuilder** buckets trades → per-minute OHLCV. Returns `(candle, is_new_bar)`. `is_new_bar=True` → `StreamState` broadcasts prev candle as finalized `bar` SSE event.
+- **DataFeed** (frontend) buckets SSE `trade`/`bar` into panel timeframe. 3-way branch: forward / same / old (don't regress `_currentCandle`).
+- **"Fake UTC" epoch**: `calendar.timegm(local_timetuple)` in `fmp_rest.py` + `fmp_batch_poller.py` — lightweight-charts shows local TZ timestamps without offset.
+- **Candle countdown timer**: `chart.js` renders MM:SS until next candle close on price scale via `priceToCoordinate()`, updated every second. Hidden for 1Day/1Week.
+- **AlertState** tracks edge-crossing per (ticker, level) — fires once per cross, not every tick.
 - `.env` written at runtime via `python-dotenv`'s `set_key`.
 
 ## Data Flow (Live)
@@ -83,11 +83,10 @@ FMPBatchPoller._fetch_batch()
 
 ## Known Constraints
 
-- FMP Starter plan: no WebSocket, no ETFs on some endpoints, 250 API calls/day cap on some endpoints (historical bars cost calls; `/batch-quote` does not appear capped in testing).
-- FMP `extended=true` on intraday endpoints unlocks 04:00–09:29 ET bars (premarket).
-- Level cache (`levels/cache.py`) in-progress — not yet wired into `app.py`.
+- FMP Starter: no WebSocket, no ETFs on some endpoints, 250 calls/day cap on some endpoints (historical bars cost calls; `/batch-quote` not capped in testing).
+- FMP `extended=true` on intraday endpoints → 04:00–09:29 ET premarket bars.
+- Level cache (`levels/cache.py`) in-progress — not wired into `app.py` yet.
 
 ## Dependencies
 
-Python 3.12, managed in `venv/`. See `requirements.txt`.
-No test suite currently exists.
+Python 3.12, managed in `venv/`. See `requirements.txt`. No test suite.

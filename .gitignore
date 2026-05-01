@@ -21,6 +21,11 @@ build/
 # PyInstaller
 *.spec
 
+# Electron
+electron/node_modules/
+electron/dist/
+electron/release/
+
 # OS
 .DS_Store
 Thumbs.db

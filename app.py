@@ -9,16 +9,14 @@ import json
 import os
 import queue
 import re
-import sys
 import threading
-import webbrowser
 
 from flask import Flask, Response, jsonify, redirect, render_template, request
 
 from dotenv import dotenv_values, set_key
 
 import config
-from data.fmp_rest import fetch_bars, get_api
+from data.fmp_rest import fetch_bars, get_api, cache_stats
 from data.fmp_batch_poller import FMPBatchPoller
 from data.candle_builder import CandleBuilder
 
@@ -28,9 +26,7 @@ import levels.cache as level_cache
 
 
 def _app_path():
-    """Base path for templates/static — PyInstaller bundle vs dev."""
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-        return sys._MEIPASS
+    """Base path for templates/static."""
     return os.path.dirname(os.path.abspath(__file__))
 
 
@@ -257,11 +253,7 @@ _TIMEZONES = [
     "America/Denver", "America/Los_Angeles",
 ]
 
-_ENV_PATH = os.path.join(
-    os.path.dirname(sys.executable) if getattr(sys, 'frozen', False)
-    else os.path.dirname(os.path.abspath(__file__)),
-    '.env'
-)
+_ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
 
 
 @app.route("/")
@@ -354,6 +346,12 @@ def api_quote(ticker):
         return jsonify({"price": q.get("price"), "changePercentage": q.get("changePercentage")})
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
+@app.route("/api/bars/cache")
+def api_bars_cache():
+    """Bar cache stats — useful for understanding cache efficiency."""
+    return jsonify(cache_stats())
 
 
 # ---------------------------------------------------------------------------
@@ -477,58 +475,25 @@ def _free_port(port):
 
 
 if __name__ == "__main__":
-    import argparse
-    _parser = argparse.ArgumentParser(description="PunkTrader")
-    _parser.add_argument("--browser", "--no-window", action="store_true",
-                         help="Open in browser instead of native window (frozen builds only)")
-    _args, _ = _parser.parse_known_args()
-
     port = int(os.environ.get("PORT", 5000))
     is_child = os.environ.get("WERKZEUG_RUN_MAIN") == "true"
 
+    _free_port(port)
+
     # One-time setup (not Werkzeug reloader child)
     if not is_child:
-        _free_port(port)
-
-        if not getattr(sys, 'frozen', False):
-            import subprocess as _sp
-            result = _sp.run(
-                ["venv/bin/pytest", "--tb=short", "-q"],
-                cwd=os.path.dirname(os.path.abspath(__file__)),
-            )
-            if result.returncode != 0:
-                print("Tests failed — fix them before starting PunkTrader.")
-                raise SystemExit(result.returncode)
-
-        # Browser open only in dev mode (not frozen/native-window)
-        if not getattr(sys, 'frozen', False):
-            threading.Timer(1.5, lambda: webbrowser.open(f"http://localhost:{port}")).start()
+        import subprocess as _sp
+        result = _sp.run(
+            ["venv/bin/pytest", "--tb=short", "-q"],
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        if result.returncode != 0:
+            print("Tests failed — fix them before starting PunkTrader.")
+            raise SystemExit(result.returncode)
 
     # FMP batch poller (must run in serving process)
     state.start_stream()
 
     print(f"PunkTrader running at http://localhost:{port}")
-
-    # Frozen exe → native window via pywebview (skip with --browser)
-    if getattr(sys, 'frozen', False) and not _args.browser:
-        try:
-            import webview
-            threading.Thread(
-                target=lambda: app.run(host="127.0.0.1", port=port, debug=False, threaded=True),
-                daemon=True,
-            ).start()
-            # Wait for server before opening window
-            import time, urllib.request
-            for _ in range(30):
-                try:
-                    urllib.request.urlopen(f"http://127.0.0.1:{port}")
-                    break
-                except Exception:
-                    time.sleep(0.3)
-            webview.create_window("PunkTrader", f"http://localhost:{port}")
-            webview.start()
-            sys.exit(0)
-        except ImportError:
-            pass  # fall through to plain Flask
 
     app.run(host="127.0.0.1", port=port, debug=False, threaded=True)

@@ -47,6 +47,10 @@ function initToolbar(layoutManager, ptKey) {
                         layoutManager.setTicker(clean);
                         tickerInput.value = clean;
                         try { localStorage.setItem(ptKey('ticker'), clean); } catch (ex) {}
+                    } else if (!clean) {
+                        tickerInput.value = '';
+                        tickerInput.classList.add('input-error');
+                        setTimeout(function() { tickerInput.classList.remove('input-error'); }, 400);
                     }
                     tickerInput.blur();
                 }
@@ -98,6 +102,15 @@ function initToolbar(layoutManager, ptKey) {
                 b.classList.toggle('active', b.dataset.layout === savedLayout);
             });
         }
+
+        // --- Keep timeframe buttons in sync with active panel ---
+        document.addEventListener('pt:active-panel-changed', function(e) {
+            if (e.detail && e.detail.timeframe && tfButtons) {
+                Array.prototype.forEach.call(tfButtons, function(b) {
+                    b.classList.toggle('active', b.dataset.tf === e.detail.timeframe);
+                });
+            }
+        });
 
         // --- Draw tool toggle ---
         var drawToggle = document.getElementById('draw-toggle');

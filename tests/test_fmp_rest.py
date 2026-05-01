@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytz
 
-from data.fmp_rest import _parse_et_dt, _to_local_epoch, _aggregate_weekly, fetch_bars
+from data.fmp_rest import _parse_et_dt, _to_local_epoch, _aggregate_weekly, fetch_bars, clear_bar_cache
 
 ET = pytz.timezone("America/New_York")
 
@@ -128,6 +128,9 @@ class TestAggregateWeekly:
 
 
 class TestFetchBars:
+    def setup_method(self):
+        clear_bar_cache()
+
     _INTRADAY_RAW = [
         # FMP returns newest first
         {"date": "2024-01-15 09:35:00", "open": "100.5", "high": "101.0",

@@ -5,15 +5,83 @@ Free plan limits:
   - 250 API calls/day
   - No ETFs (e.g. QQQ) or some large-cap tickers (e.g. GOOG) — those need paid plan
   - Single-symbol queries only (multi-symbol = paid)
+
+Caching: TTL-based in-memory cache. Historical data is immutable, so we cache
+aggressively. Only the latest intraday bar might change (new close). TTL varies
+by timeframe — shorter for intraday, longer for daily/weekly.
 """
 
 import calendar
+import time as _time
 from datetime import datetime, timedelta, timezone
 
 import pytz
 import requests
 
 import config
+
+
+# ---------------------------------------------------------------------------
+# Bar data cache
+# ---------------------------------------------------------------------------
+
+_cache = {}
+_CACHE_MAX = 200
+_CACHE_TTL = {
+    "1Min": 30,
+    "5Min": 60,
+    "15Min": 120,
+    "1Hour": 300,
+    "4Hour": 600,
+    "1Day": 3600,
+    "1Week": 7200,
+}
+_CACHE_DEFAULT_TTL = 60
+
+
+def _cache_get(ticker, timeframe, start_str, end_str):
+    key = f"{ticker}|{timeframe}|{start_str}|{end_str}"
+    entry = _cache.get(key)
+    if entry:
+        ttl = _CACHE_TTL.get(timeframe, _CACHE_DEFAULT_TTL)
+        if _time.time() - entry["ts"] < ttl:
+            return entry["data"]
+        del _cache[key]
+    return None
+
+
+def _cache_set(ticker, timeframe, start_str, end_str, data):
+    key = f"{ticker}|{timeframe}|{start_str}|{end_str}"
+    # Evict oldest entry if cache is full
+    if len(_cache) >= _CACHE_MAX:
+        oldest = min(_cache, key=lambda k: _cache[k]["ts"])
+        del _cache[oldest]
+    _cache[key] = {"data": data, "ts": _time.time()}
+
+
+def clear_bar_cache(ticker=None, timeframe=None):
+    """Clear cached bars. If ticker given, only clear entries for that ticker."""
+    if not ticker:
+        _cache.clear()
+        return
+    for key in list(_cache.keys()):
+        if key.startswith(f"{ticker.upper()}|"):
+            del _cache[key]
+
+
+def cache_stats():
+    """Return summary of current cache entries."""
+    by_tf = {}
+    for key, entry in _cache.items():
+        parts = key.split("|")
+        tf = parts[1] if len(parts) > 1 else "?"
+        by_tf.setdefault(tf, 0)
+        by_tf[tf] += 1
+    return {
+        "entries": len(_cache),
+        "max": _CACHE_MAX,
+        "by_timeframe": by_tf,
+    }
 
 TZ = pytz.timezone(config.TIMEZONE)
 ET = pytz.timezone("America/New_York")
@@ -103,6 +171,11 @@ def fetch_bars(api, ticker, timeframe="5Min", start=None, end=None):
     start_str = start.strftime("%Y-%m-%d") if isinstance(start, datetime) else str(start)[:10]
     end_str   = end.strftime("%Y-%m-%d")   if isinstance(end,   datetime) else str(end)[:10]
 
+    # Check cache before hitting FMP API
+    cached = _cache_get(ticker, timeframe, start_str, end_str)
+    if cached is not None:
+        return cached
+
     if timeframe in _INTRADAY_RES:
         res = _FMP_RES[timeframe]
         raw = api.get(f"/historical-chart/{res}", {
@@ -139,4 +212,5 @@ def fetch_bars(api, ticker, timeframe="5Min", start=None, end=None):
     if timeframe == "1Week":
         result = _aggregate_weekly(result)
 
+    _cache_set(ticker, timeframe, start_str, end_str, result)
     return result

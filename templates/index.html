@@ -18,7 +18,7 @@
     <span class="brand">PUNK</span>
     <button id="sidebar-toggle" title="Toggle watchlist">◀</button>
     <div class="separator"></div>
-    <input type="text" id="ticker-input" value="{{ default_ticker }}" spellcheck="false" autocomplete="off">
+    <input type="text" id="ticker-input" value="{{ default_ticker }}" maxlength="10" spellcheck="false" autocomplete="off">
 
     <div class="separator"></div>
 
@@ -53,6 +53,7 @@
 </div>
 
 <script src="/static/js/notifications.js"></script>
+<script src="/static/js/sessions.js"></script>
 <script src="/static/js/chart.js"></script>
 <script src="/static/js/draw-tool.js"></script>
 <script src="/static/js/overlays.js"></script>

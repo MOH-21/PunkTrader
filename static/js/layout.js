@@ -14,9 +14,10 @@ class LayoutManager {
     /**
      * Initialize with a default layout and ticker/timeframe.
      */
-    init(ticker, timeframe) {
+    init(ticker, timeframe, ptKey) {
         this._defaultTicker = ticker;
         this._defaultTimeframe = timeframe;
+        this._ptKey = ptKey || (typeof window.ptKey === 'function' ? window.ptKey : null);
         this.setLayout('1x1');
     }
 
@@ -86,11 +87,14 @@ class LayoutManager {
         for (var l = 0; l < this.panels.length; l++) {
             this.panels[l].loadData();
         }
+
+        this.saveSession();
     }
 
     setActivePanel(index) {
         this.activePanelIndex = index;
         this._updateActiveVisual();
+        this.saveSession();
         var panel = this.getActivePanel();
         if (panel) {
             var tickerInput = document.getElementById('ticker-input');
@@ -113,12 +117,48 @@ class LayoutManager {
     }
 
     /**
+     * Save full session to localStorage so the user picks up where they left off.
+     */
+    saveSession() {
+        var ptKey = this._ptKey || (typeof window.ptKey === 'function' ? window.ptKey : null);
+        if (!ptKey) return;
+        var state = { layout: this.layout, activePanel: this.activePanelIndex, panels: {} };
+        for (var i = 0; i < this.panels.length; i++) {
+            state.panels[i] = {
+                ticker: this.panels[i].ticker || '',
+                timeframe: this.panels[i].timeframe || ''
+            };
+        }
+        try { localStorage.setItem(ptKey('session'), JSON.stringify(state)); } catch (e) {}
+        // Keep individual keys in sync so toolbar restore matches session
+        try { localStorage.setItem(ptKey('layout'), state.layout); } catch (e) {}
+        var ap = this.getActivePanel();
+        if (ap) {
+            try { localStorage.setItem(ptKey('ticker'), ap.ticker); } catch (e) {}
+            try { localStorage.setItem(ptKey('timeframe'), ap.timeframe); } catch (e) {}
+        }
+    }
+
+    /**
+     * Load a saved session from localStorage. Returns null if no session exists.
+     */
+    static loadSession(ptKey) {
+        if (!ptKey) ptKey = function(name) { return 'pt_' + name; };
+        try {
+            var raw = localStorage.getItem(ptKey('session'));
+            if (raw) return JSON.parse(raw);
+        } catch (e) {}
+        return null;
+    }
+
+    /**
      * Change ticker/timeframe on the active panel.
      */
     setTicker(ticker) {
         var panel = this.getActivePanel();
         if (panel) {
             return panel.loadData(ticker).then((function() {
+                this.saveSession();
                 document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
                     detail: { ticker: panel.ticker, timeframe: panel.timeframe }
                 }));
@@ -131,6 +171,7 @@ class LayoutManager {
         var panel = this.getActivePanel();
         if (panel) {
             return panel.loadData(null, timeframe).then((function() {
+                this.saveSession();
                 document.dispatchEvent(new CustomEvent('pt:active-panel-changed', {
                     detail: { ticker: panel.ticker, timeframe: panel.timeframe }
                 }));

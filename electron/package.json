@@ -1,0 +1,43 @@
+{
+  "name": "punk-trader",
+  "version": "1.0.0",
+  "description": "PunkTrader — stock charting terminal",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.punktrader.app",
+    "productName": "PunkTrader",
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "..",
+        "to": "app",
+        "filter": [
+          "**/*",
+          "!**/node_modules/**",
+          "!**/__pycache__/**",
+          "!**/.git/**",
+          "!venv/**",
+          "!.venv/**",
+          "!electron/**",
+          "!**/*.pyc",
+          "!**/.DS_Store"
+        ]
+      }
+    ],
+    "linux": {
+      "target": ["AppImage"],
+      "category": "Finance"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
